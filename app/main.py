@@ -39,6 +39,13 @@ async def fetch(client, place, model=None):
  if model: params["models"]=model
  return await get_json(client,URL,params)
 
+async def fetch_gust_fallback(client, place):
+ """Fetch gust values from Open-Meteo to fill gaps in MET Norway's long-range forecast."""
+ params={"latitude":place["lat"],"longitude":place["lon"],
+  "current":"wind_gusts_10m","daily":"wind_gusts_10m_max",
+  "forecast_days":9,"timezone":"Atlantic/Reykjavik","wind_speed_unit":"ms"}
+ return await get_json(client,URL,params)
+
 
 YR_SYMBOL_TO_WMO = {
  "clearsky":0,"fair":1,"partlycloudy":2,"cloudy":3,"fog":45,
@@ -126,10 +133,23 @@ async def dashboard():
  if cache_ok("dashboard"): return CACHE["dashboard"]["data"]
  async with httpx.AsyncClient() as client:
   results=await asyncio.gather(*(get_json(client,YR_URL,{"lat":round(p["lat"],2),"lon":round(p["lon"],2)},headers={"User-Agent":YR_USER_AGENT}) for p in PLACES),return_exceptions=True)
+  gust_results=await asyncio.gather(*(fetch_gust_fallback(client,p) for p in PLACES),return_exceptions=True)
   points=[]
-  for place,result in zip(PLACES,results):
+  for place,result,gust_result in zip(PLACES,results,gust_results):
    try:
     normalized=convert_yr_forecast(place,result) if not isinstance(result,Exception) else None
+    if normalized and not isinstance(gust_result,Exception):
+     fallback_current=gust_result.get("current",{}).get("wind_gusts_10m")
+     if normalized["current"].get("wind_gusts_10m") is None and fallback_current is not None:
+      normalized["current"]["wind_gusts_10m"]=fallback_current
+     fallback_daily=gust_result.get("daily",{})
+     fallback_dates=fallback_daily.get("time",[])
+     fallback_values=fallback_daily.get("wind_gusts_10m_max",[])
+     fallback_by_date=dict(zip(fallback_dates,fallback_values))
+     for index,forecast_date in enumerate(normalized["daily"]["time"]):
+      if normalized["daily"]["wind_gusts_10m_max"][index] is None:
+       normalized["daily"]["wind_gusts_10m_max"][index]=fallback_by_date.get(forecast_date)
+     normalized["gust_source"]="MET Norway, with Open-Meteo fallback where gust data is unavailable"
     points.append({**place,"data":normalized,"error":str(result) if isinstance(result,Exception) else None})
    except Exception as e:
     points.append({**place,"data":None,"error":str(e)})
