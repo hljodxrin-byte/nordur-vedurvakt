@@ -51,7 +51,7 @@ function renderOfficialAlerts(items){const ordered=prioritizeAlerts(items);docum
 function renderDailyRows(day){
  const body=document.getElementById('rows');
  if(!body)return;
- if(!day||!Array.isArray(day.time)||!day.time.length){body.innerHTML='<tr><td colspan="7" class="error">10 daga spáin er ekki tiltæk eins og stendur. Reyndu að uppfæra gögnin.</td></tr>';return;}
+ if(!day||!Array.isArray(day.time)||!day.time.length){body.innerHTML='<tr><td colspan="7" class="error">9 daga spáin er ekki tiltæk eins og stendur. Reyndu að uppfæra gögnin.</td></tr>';return;}
  body.innerHTML=day.time.map((t,i)=>{
   const code=Array.isArray(day.weather_code)?day.weather_code[i]:null;
   const date=new Date(t+'T12:00:00');
@@ -84,7 +84,7 @@ function renderForecast(data){
   document.getElementById('desc').textContent='Veðurgögn fyrir þetta svæði eru ekki tiltæk eins og stendur.';
   ['wind','gust','pressure'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('forecast-risks').innerHTML='<p class="muted">Prófaðu að uppfæra gögnin eftir smástund.</p>';
-  document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Engin 10 daga spá fannst fyrir '+esc(selectedLabel)+'. Önnur svæði eru ekki sýnd í staðinn.</td></tr>';
+  document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Engin 9 daga spá fannst fyrir '+esc(selectedLabel)+'. Önnur svæði eru ekki sýnd í staðinn.</td></tr>';
   document.getElementById('places').innerHTML='<div class="place">Engin veðurgögn tiltæk fyrir '+esc(selectedLabel)+'.</div>';
   document.getElementById('modelcards').innerHTML='<div class="model">Líkansamanburður ekki tiltækur fyrir valið svæði.</div>';
   markers.forEach(m=>map.removeLayer(m));markers=[];
@@ -112,14 +112,14 @@ function renderForecast(data){
  if(maxg>=18)risks.push('Vindhviður geta náð '+n(maxg)+' m/s.');
  if(maxr>=20)risks.push('Úrkoma getur orðið '+n(maxr)+' mm á sólarhring.');
  if(drop>=20)risks.push('Þrýstingur fellur um '+n(drop,0)+' hPa á spátímabilinu.');
- document.getElementById('forecast-risks').innerHTML=risks.length?risks.map(x=>'<div class="alert">'+esc(x)+'</div>').join(''):'<p class="muted">Engin sterk sjálfvirk áhættumerki í 10 daga spánni.</p>';
+ document.getElementById('forecast-risks').innerHTML=risks.length?risks.map(x=>'<div class="alert">'+esc(x)+'</div>').join(''):'<p class="muted">Engin sterk sjálfvirk áhættumerki í 9 daga spánni.</p>';
  map.invalidateSize();
 }
 async function load(){document.getElementById('status').textContent='Sæki gögn…';let errors=[];
 const tasks=await Promise.allSettled([json('/api/dashboard'),json('/api/alerts'),json('/api/observations'),json('/api/pressure-lows')]);
 const [forecast,alerts,obs,lows]=tasks.map(x=>x.status==='fulfilled'?x.value:null);
 tasks.forEach((x,i)=>{if(x.status==='rejected')errors.push(['spá','viðvaranir','mælingar','lægðir'][i])});
-if(forecast){try{latestForecast=forecast;renderForecast(forecast);}catch(e){console.error('Villa við birtingu 10 daga spár:',e);document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Ekki tókst að birta 10 daga spána. Reyndu að uppfæra síðuna.</td></tr>';errors.push('birting spár')}}else{document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Ekki tókst að sækja 10 daga spána. Reyndu aftur eftir smástund.</td></tr>';}
+if(forecast){try{latestForecast=forecast;renderForecast(forecast);}catch(e){console.error('Villa við birtingu 9 daga spár:',e);document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Ekki tókst að birta 9 daga spána. Reyndu að uppfæra síðuna.</td></tr>';errors.push('birting spár')}}else{document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Ekki tókst að sækja 9 daga spána. Reyndu aftur eftir smástund.</td></tr>';}
 if(alerts){window.latestAlerts=alerts.alerts||[];renderOfficialAlerts(window.latestAlerts);}
 else document.getElementById('official-alerts').innerHTML='<p class="error">Ekki tókst að sækja opinberar viðvaranir. Skoðaðu <a href="https://www.vedur.is/viðvaranir" target="_blank" rel="noopener">vedur.is</a>.</p>';
 if(obs){let items=(obs.observations||[]).slice(0,35);document.getElementById('observation-rows').innerHTML=items.length?items.map(x=>'<tr><td>'+esc(x.name||('Stöð '+x.station))+'</td><td>'+fmtDate(x.time)+'</td><td>'+n(x.temperature)+'°C</td><td>'+n(x.wind)+' m/s</td><td>'+n(x.gust)+' m/s</td><td>'+n(x.pressure,0)+' hPa</td></tr>').join(''):'<tr><td colspan="6">Engar mælingar bárust.</td></tr>';}
