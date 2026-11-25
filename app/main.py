@@ -47,6 +47,7 @@ YR_SYMBOL_TO_WMO = {
  "heavysleet":67,"lightsnow":71,"snow":73,"heavysnow":75,
  "lightsnowshowers":85,"snowshowers":85,"heavysnowshowers":86,
  "rainandthunder":95,"lightrainandthunder":95,"heavyrainandthunder":99,
+ "rainshowersandthunder":95,"heavyrainshowersandthunder":99,"lightsnowshowersandthunder":96,"snowshowersandthunder":96,
  "sleetandthunder":96,"snowandthunder":96
 }
 
