@@ -22,7 +22,7 @@ YR_USER_AGENT="Nordur-Vedurvakt/1.0 (https://github.com/hljodxrin-byte/nordur-ve
 IMO_WEATHER="https://api.vedur.is/weather"
 IMO_CAP="https://api.vedur.is/cap/v1"
 CACHE={"dashboard":{"at":0,"data":None},"alerts":{"at":0,"data":None},"observations":{"at":0,"data":None},"lows":{"at":0,"data":None}}
-TTL=int(os.getenv("CACHE_TTL_SECONDS","900"))
+TTL=max(1800,int(os.getenv("CACHE_TTL_SECONDS","1800")))
 
 async def get_json(client,url,params=None,headers=None):
  request_headers=headers or {"User-Agent":"Nordur-Vedurvakt/1.0 (https://github.com/hljodxrin-byte/nordur-vedurvakt)"}
