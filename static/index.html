@@ -28,10 +28,10 @@
 <section class="card alerts"><details class="alerts-panel" open><summary class="alerts-toggle"><h2>Opinberar veðurviðvaranir · Veðurstofa Íslands</h2></summary><div class="alerts-content"><div class="alert-location-tools"><small id="alert-location-status">Reyni að finna þitt svæði…</small><button type="button" onclick="requestAlertLocation()">Uppfæra staðsetningu</button></div><div id="official-alerts">Sæki gildandi viðvaranir…</div><p class="muted">Viðvaranir eru sóttar beint úr CAP-þjónustu Veðurstofu Íslands. <a href="https://www.vedur.is/viðvaranir" target="_blank" rel="noopener">Skoða á vedur.is</a></p></div></details></section>
 <section class="card lows"><h2>Lægðagreining · Norður-Atlantshaf</h2><div id="low-analysis">Greini þrýstingssvið…</div><p class="muted">Greining byggir á staðbundnum lágmörkum sjávarmálsþrýstings í veðurspálíkani. Hún er sjálfvirk og kemur ekki í stað opinberrar veðurspár.</p></section>
 <section class="card observations"><h2>Nýjustu mælingar veðurstöðva</h2><div class="scroll"><table><thead><tr><th>Stöð</th><th>Tími</th><th>Hiti</th><th>Vindur</th><th>Hviður</th><th>Þrýstingur</th></tr></thead><tbody id="observation-rows"><tr><td colspan="6">Sæki mælingar…</td></tr></tbody></table></div><p class="muted">Raunmælingar frá sjálfvirkum veðurstöðvum Veðurstofu Íslands.</p></section>
-<section class="card forecast"><h2>10 daga spá · Reykjavík</h2><div class="scroll"><table><thead><tr><th>Dagur</th><th>Veður</th><th>Hiti</th><th>Úrkoma</th><th>Vindur</th><th>Hviður</th><th>Þrýstingur</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+<section class="card forecast"><h2>9 daga spá · Reykjavík</h2><div class="scroll"><table><thead><tr><th>Dagur</th><th>Veður</th><th>Hiti</th><th>Úrkoma</th><th>Vindur</th><th>Hviður</th><th>Þrýstingur</th></tr></thead><tbody id="rows"></tbody></table></div></section>
 <section class="card models"><h2 style="grid-column:1/-1">Samanburður veðurlíkana · Reykjavík núna</h2><div id="modelcards" style="display:contents"></div></section>
 <section class="card forecast"><h2>Veður á fleiri stöðum</h2><div id="places" class="places"></div></section>
-</div><p class="muted">Spár: Open-Meteo. Viðvaranir og mælingar: Veðurstofa Íslands. Uppfært <span id="updated">—</span>. Gögn geta breyst og spár eru óvissari eftir því sem lengra líður.</p></main>
+</div><p class="muted">Veðurspár: <a href="https://www.yr.no/" target="_blank" rel="noopener">yr.no</a> / MET Norway (<a href="https://api.met.no/weatherapi/locationforecast/2.0/documentation" target="_blank" rel="noopener">Locationforecast 2.0</a>, <a href="https://developer.yr.no/doc/License/" target="_blank" rel="noopener">CC BY 4.0</a>). Samanburður líkana: Open-Meteo. Viðvaranir og mælingar: Veðurstofa Íslands. Uppfært <span id="updated">—</span>. Gögn geta breyst og spár eru óvissari eftir því sem lengra líður.</p></main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
 const map=L.map('map').setView([64.8,-19],4);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);let markers=[];let selectedLocation='all';let latestForecast=null;let alertLocationPlace=null;const regionPlaces={capital:['Reykjavík'],north:['Akureyri'],westfjords:['Ísafjörður'],east:['Egilsstaðir'],south:['Vík','Vestmannaeyjar']};
 const n=(v,d=1)=>v!==null&&v!==undefined&&Number.isFinite(Number(v))?Number(v).toFixed(d):'—';
@@ -78,7 +78,7 @@ function renderForecast(data){
  // Never silently fall back to all of Iceland when a selected location has no data.
  if(!primary){
   document.querySelector('.hero .muted').textContent='NÚNA · '+selectedLabel.toLocaleUpperCase('is');
-  document.querySelector('.forecast h2').textContent='10 daga spá · '+selectedLabel;
+  document.querySelector('.forecast h2').textContent='9 daga spá · '+selectedLabel;
   document.getElementById('temp').textContent='—°';
   document.getElementById('weather-icon').textContent='🌡️';
   document.getElementById('desc').textContent='Veðurgögn fyrir þetta svæði eru ekki tiltæk eins og stendur.';
@@ -95,7 +95,7 @@ function renderForecast(data){
  renderDailyRows(day);
  const primaryLabel=selectedLocation==='all'?'Reykjavík':primary.name;
  document.querySelector('.hero .muted').textContent='NÚNA · '+selectedLabel.toLocaleUpperCase('is')+(regionKey?' · VIÐMIÐ: '+primary.name.toLocaleUpperCase('is'):'');
- document.querySelector('.forecast h2').textContent='10 daga spá · '+(regionKey?selectedLabel+' (viðmið: '+primary.name+')':primaryLabel);
+ document.querySelector('.forecast h2').textContent='9 daga spá · '+(regionKey?selectedLabel+' (viðmið: '+primary.name+')':primaryLabel);
  document.getElementById('temp').textContent=n(c.temperature_2m,0)+'°';
  document.getElementById('weather-icon').innerHTML=weatherIcon(c.weather_code,c.is_day!==0);
  document.getElementById('desc').textContent=weather(c.weather_code);
