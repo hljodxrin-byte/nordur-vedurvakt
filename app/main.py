@@ -1,5 +1,6 @@
 import asyncio, os, time, math
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,13 +17,16 @@ PLACES = [
  {"name":"Vestmannaeyjar","lat":63.4427,"lon":-20.2734}
 ]
 URL="https://api.open-meteo.com/v1/forecast"
+YR_URL="https://api.met.no/weatherapi/locationforecast/2.0/compact"
+YR_USER_AGENT="Nordur-Vedurvakt/1.0 (https://github.com/hljodxrin-byte/nordur-vedurvakt)"
 IMO_WEATHER="https://api.vedur.is/weather"
 IMO_CAP="https://api.vedur.is/cap/v1"
 CACHE={"dashboard":{"at":0,"data":None},"alerts":{"at":0,"data":None},"observations":{"at":0,"data":None},"lows":{"at":0,"data":None}}
 TTL=int(os.getenv("CACHE_TTL_SECONDS","900"))
 
-async def get_json(client,url,params=None):
- r=await client.get(url,params=params,timeout=35,headers={"User-Agent":"Nordur-Vedurvakt/1.0 (public Iceland weather dashboard)"})
+async def get_json(client,url,params=None,headers=None):
+ request_headers=headers or {"User-Agent":"Nordur-Vedurvakt/1.0 (https://github.com/hljodxrin-byte/nordur-vedurvakt)"}
+ r=await client.get(url,params=params,timeout=35,headers=request_headers)
  r.raise_for_status()
  return r.json()
 
@@ -34,6 +38,78 @@ async def fetch(client, place, model=None):
   "forecast_days":10,"timezone":"Atlantic/Reykjavik","wind_speed_unit":"ms"}
  if model: params["models"]=model
  return await get_json(client,URL,params)
+
+
+YR_SYMBOL_TO_WMO = {
+ "clearsky":0,"fair":1,"partlycloudy":2,"cloudy":3,"fog":45,
+ "lightrain":61,"rain":63,"heavyrain":65,"lightrainshowers":80,
+ "rainshowers":81,"heavyrainshowers":82,"lightsleet":66,"sleet":67,
+ "heavysleet":67,"lightsnow":71,"snow":73,"heavysnow":75,
+ "lightsnowshowers":85,"snowshowers":85,"heavysnowshowers":86,
+ "rainandthunder":95,"lightrainandthunder":95,"heavyrainandthunder":99,
+ "sleetandthunder":96,"snowandthunder":96
+}
+
+def yr_symbol_to_wmo(symbol):
+ if not symbol: return 3
+ key=str(symbol).split("_")[0]
+ if key in YR_SYMBOL_TO_WMO: return YR_SYMBOL_TO_WMO[key]
+ for prefix,code in sorted(YR_SYMBOL_TO_WMO.items(),key=lambda x:-len(x[0])):
+  if key.startswith(prefix): return code
+ return 3
+
+def convert_yr_forecast(place, payload):
+ """Normalize MET Norway Locationforecast data to the dashboard's forecast shape."""
+ series=payload.get("properties",{}).get("timeseries",[])
+ if not series: raise ValueError("MET Norway returned an empty forecast")
+ local_tz=ZoneInfo("Atlantic/Reykjavik")
+ rows=[]
+ for item in series:
+  instant=item.get("data",{}).get("instant",{}).get("details",{})
+  if not instant: continue
+  dt=datetime.fromisoformat(item["time"].replace("Z","+00:00")).astimezone(local_tz)
+  data=item.get("data",{})
+  next1=data.get("next_1_hours",{})
+  next6=data.get("next_6_hours",{})
+  summary=next1.get("summary",{}) or next6.get("summary",{})
+  details=next1.get("details",{}) or next6.get("details",{})
+  symbol=summary.get("symbol_code")
+  rows.append({
+   "dt":dt,"temp":instant.get("air_temperature"),
+   "wind":instant.get("wind_speed"),"gust":instant.get("wind_speed_of_gust"),
+   "pressure":instant.get("air_pressure_at_sea_level"),
+   "precip":details.get("precipitation_amount",0) or 0,
+   "symbol":symbol,"code":yr_symbol_to_wmo(symbol)
+  })
+ if not rows: raise ValueError("MET Norway forecast had no usable time steps")
+ first=rows[0]
+ current={"temperature_2m":first["temp"],"precipitation":first["precip"],
+  "weather_code":first["code"],"wind_speed_10m":first["wind"],
+  "wind_direction_10m":None,"wind_gusts_10m":first["gust"],
+  "pressure_msl":first["pressure"],"is_day":1}
+ by_day={}
+ for row in rows:
+  key=row["dt"].date().isoformat()
+  day=by_day.setdefault(key,{"temps":[],"winds":[],"gusts":[],"pressures":[],"precip":0.0,"codes":[]})
+  if row["temp"] is not None: day["temps"].append(float(row["temp"]))
+  if row["wind"] is not None: day["winds"].append(float(row["wind"]))
+  if row["gust"] is not None: day["gusts"].append(float(row["gust"]))
+  if row["pressure"] is not None: day["pressures"].append(float(row["pressure"]))
+  if row["precip"] is not None: day["precip"]+=max(0.0,float(row["precip"]))
+  day["codes"].append(row["code"])
+ dates=sorted(by_day)
+ daily={"time":dates,"weather_code":[],"temperature_2m_max":[],"temperature_2m_min":[],
+  "precipitation_sum":[],"wind_speed_10m_max":[],"wind_gusts_10m_max":[],"pressure_msl_mean":[]}
+ for date in dates:
+  d=by_day[date]
+  daily["weather_code"].append(max(set(d["codes"]),key=d["codes"].count) if d["codes"] else 3)
+  daily["temperature_2m_max"].append(max(d["temps"]) if d["temps"] else None)
+  daily["temperature_2m_min"].append(min(d["temps"]) if d["temps"] else None)
+  daily["precipitation_sum"].append(round(d["precip"],1))
+  daily["wind_speed_10m_max"].append(max(d["winds"]) if d["winds"] else None)
+  daily["wind_gusts_10m_max"].append(max(d["gusts"]) if d["gusts"] else None)
+  daily["pressure_msl_mean"].append(round(sum(d["pressures"])/len(d["pressures"]),1) if d["pressures"] else None)
+ return {"current":current,"daily":daily,"source":"MET Norway Locationforecast 2.0","forecast_days":len(dates)}
 
 def cache_ok(key):
  return CACHE[key]["data"] is not None and time.time()-CACHE[key]["at"]<TTL
@@ -48,17 +124,19 @@ async def health(): return {"ok":True,"service":"Nordur"}
 async def dashboard():
  if cache_ok("dashboard"): return CACHE["dashboard"]["data"]
  async with httpx.AsyncClient() as client:
-  results=await asyncio.gather(*(fetch(client,p) for p in PLACES),return_exceptions=True)
+  results=await asyncio.gather(*(get_json(client,YR_URL,{"lat":round(p["lat"],2),"lon":round(p["lon"],2)},headers={"User-Agent":YR_USER_AGENT}) for p in PLACES),return_exceptions=True)
   points=[]
-  for p,r in zip(PLACES,results):
-   points.append({**p,"data":r if not isinstance(r,Exception) else None,"error":str(r) if isinstance(r,Exception) else None})
-  models=[]
-  for name,model in [("ECMWF IFS","ecmwf_ifs025"),("GFS","gfs_seamless"),("ICON","icon_seamless")]:
+  for place,result in zip(PLACES,results):
    try:
-    x=await fetch(client,PLACES[0],model)
-    models.append({"name":name,"current":x.get("current")})
-   except Exception as e: models.append({"name":name,"error":str(e)})
- data={"generated_at":time.time(),"points":points,"models":models}
+    normalized=convert_yr_forecast(place,result) if not isinstance(result,Exception) else None
+    points.append({**place,"data":normalized,"error":str(result) if isinstance(result,Exception) else None})
+   except Exception as e:
+    points.append({**place,"data":None,"error":str(e)})
+  model_names=["ECMWF IFS","GFS","ICON"]
+  model_ids=["ecmwf_ifs025","gfs_seamless","icon_seamless"]
+  models_raw=await asyncio.gather(*(fetch(client,PLACES[0],model) for model in model_ids),return_exceptions=True)
+  models=[{"name":name,"current":result.get("current")} if not isinstance(result,Exception) else {"name":name,"error":str(result)} for name,result in zip(model_names,models_raw)]
+ data={"generated_at":time.time(),"forecast_source":"MET Norway Locationforecast 2.0","points":points,"models":models}
  CACHE["dashboard"].update(at=time.time(),data=data)
  return data
 
