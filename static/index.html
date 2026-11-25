@@ -58,7 +58,63 @@ function renderDailyRows(day){
   return '<tr><td>'+date.toLocaleDateString('is-IS',{weekday:'short',day:'numeric',month:'short'})+'</td><td class="weather-cell" title="'+esc(weather(code))+'">'+weatherIcon(code,true)+'</td><td>'+n(day.temperature_2m_min?.[i],0)+'° / '+n(day.temperature_2m_max?.[i],0)+'°</td><td>'+n(day.precipitation_sum?.[i])+' mm</td><td>'+n(day.wind_speed_10m_max?.[i])+' m/s</td><td>'+n(day.wind_gusts_10m_max?.[i])+' m/s</td><td>'+n(day.pressure_msl_mean?.[i],0)+' hPa</td></tr>';
  }).join('');
 }
-function renderForecast(data){const available=data.points.filter(x=>x.data);let shown=available;if(selectedLocation!=='all'){if(selectedLocation.startsWith('region:'))shown=available.filter(x=>(regionPlaces[selectedLocation.split(':')[1]]||[]).includes(x.name));else shown=available.filter(x=>x.name===selectedLocation);}if(!shown.length)shown=available;const primary=selectedLocation==='all'?(available.find(x=>x.name==='Reykjavík')||shown[0]):shown[0];if(!primary?.data)throw Error('Veðurspá vantar');const c=primary.data.current,day=primary.data.daily;renderDailyRows(day);document.querySelector('.hero .muted').textContent='NÚNA · '+(selectedLocation==='all'?'REYKJAVÍK':primary.name.toUpperCase())+' · SPÁ';document.querySelector('.forecast h2').textContent='10 daga spá · '+primary.name;document.getElementById('temp').textContent=n(c.temperature_2m,0)+'°';document.getElementById('weather-icon').innerHTML=weatherIcon(c.weather_code,c.is_day!==0);document.getElementById('desc').textContent=weather(c.weather_code);document.getElementById('wind').textContent=n(c.wind_speed_10m)+' m/s';document.getElementById('gust').textContent=n(c.wind_gusts_10m)+' m/s';document.getElementById('pressure').textContent=n(c.pressure_msl,0)+' hPa';document.getElementById('places').innerHTML=shown.map(x=>'<div class="place"><b>'+esc(x.name)+'</b><br><span class="place-icon" aria-hidden="true">'+weatherIcon(x.data.current.weather_code,x.data.current.is_day!==0)+'</span><strong>'+n(x.data.current.temperature_2m,0)+'°</strong><br>'+weather(x.data.current.weather_code)+' · Vindur '+n(x.data.current.wind_speed_10m)+' m/s</div>').join('');document.getElementById('modelcards').innerHTML=primary.name==='Reykjavík'?data.models.map(x=>'<div class="model"><b>'+esc(x.name)+'</b><p>'+(x.current?n(x.current.temperature_2m)+'°C · Vindur '+n(x.current.wind_speed_10m)+' m/s · '+n(x.current.pressure_msl,0)+' hPa':esc(x.error||'Ekki tiltækt'))+'</p></div>').join(''):'<div class="model">Líkansamanburður er aðeins tiltækur fyrir Reykjavík.</div>';markers.forEach(m=>map.removeLayer(m));markers=[];shown.forEach(x=>{let q=x.data.current,m=L.circleMarker([x.lat,x.lon],{radius:7,color:'#69d5df',fillColor:'#69d5df',fillOpacity:.85}).addTo(map).bindPopup('<b>'+esc(x.name)+'</b><br>'+n(q.temperature_2m)+'°C<br>Vindur '+n(q.wind_speed_10m)+' m/s');markers.push(m)});if(shown.length>1)map.fitBounds(shown.map(x=>[x.lat,x.lon]),{padding:[25,25],maxZoom:6});else map.setView([primary.lat,primary.lon],6);let maxg=Math.max(...day.wind_gusts_10m_max),maxr=Math.max(...day.precipitation_sum),drop=day.pressure_msl_mean[0]-Math.min(...day.pressure_msl_mean),risks=[];if(maxg>=18)risks.push('Vindhviður geta náð '+n(maxg)+' m/s.');if(maxr>=20)risks.push('Úrkoma getur orðið '+n(maxr)+' mm á sólarhring.');if(drop>=20)risks.push('Þrýstingur fellur um '+n(drop,0)+' hPa á spátímabilinu.');document.getElementById('forecast-risks').innerHTML=risks.length?risks.map(x=>'<div class="alert">'+esc(x)+'</div>').join(''):'<p class="muted">Engin sterk sjálfvirk áhættumerki í 10 daga spánni.</p>';map.invalidateSize();}
+const regionLabels={capital:'Höfuðborgarsvæðið',north:'Norðurland',westfjords:'Vestfirðir',east:'Austurland',south:'Suðurland'};
+function renderForecast(data){
+ const points=Array.isArray(data?.points)?data.points:[];
+ const available=points.filter(x=>x&&x.data&&x.data.current&&x.data.daily);
+ let shown=available;
+ let regionKey=null;
+ if(selectedLocation==='all'){
+  shown=available;
+ }else if(selectedLocation.startsWith('region:')){
+  regionKey=selectedLocation.split(':')[1];
+  const names=regionPlaces[regionKey]||[];
+  shown=available.filter(x=>names.includes(x.name));
+ }else{
+  shown=available.filter(x=>x.name===selectedLocation);
+ }
+ const selectedLabel=regionKey?(regionLabels[regionKey]||'Valinn landshluti'):selectedLocation==='all'?'Allt landið':selectedLocation;
+ const primary=selectedLocation==='all'?(shown.find(x=>x.name==='Reykjavík')||shown[0]):shown[0];
+ // Never silently fall back to all of Iceland when a selected location has no data.
+ if(!primary){
+  document.querySelector('.hero .muted').textContent='NÚNA · '+selectedLabel.toLocaleUpperCase('is');
+  document.querySelector('.forecast h2').textContent='10 daga spá · '+selectedLabel;
+  document.getElementById('temp').textContent='—°';
+  document.getElementById('weather-icon').textContent='🌡️';
+  document.getElementById('desc').textContent='Veðurgögn fyrir þetta svæði eru ekki tiltæk eins og stendur.';
+  ['wind','gust','pressure'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('forecast-risks').innerHTML='<p class="muted">Prófaðu að uppfæra gögnin eftir smástund.</p>';
+  document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Engin 10 daga spá fannst fyrir '+esc(selectedLabel)+'. Önnur svæði eru ekki sýnd í staðinn.</td></tr>';
+  document.getElementById('places').innerHTML='<div class="place">Engin veðurgögn tiltæk fyrir '+esc(selectedLabel)+'.</div>';
+  document.getElementById('modelcards').innerHTML='<div class="model">Líkansamanburður ekki tiltækur fyrir valið svæði.</div>';
+  markers.forEach(m=>map.removeLayer(m));markers=[];
+  map.setView([64.8,-19],4);map.invalidateSize();
+  return;
+ }
+ const c=primary.data.current,day=primary.data.daily;
+ renderDailyRows(day);
+ const primaryLabel=selectedLocation==='all'?'Reykjavík':primary.name;
+ document.querySelector('.hero .muted').textContent='NÚNA · '+selectedLabel.toLocaleUpperCase('is')+(regionKey?' · VIÐMIÐ: '+primary.name.toLocaleUpperCase('is'):'');
+ document.querySelector('.forecast h2').textContent='10 daga spá · '+(regionKey?selectedLabel+' (viðmið: '+primary.name+')':primaryLabel);
+ document.getElementById('temp').textContent=n(c.temperature_2m,0)+'°';
+ document.getElementById('weather-icon').innerHTML=weatherIcon(c.weather_code,c.is_day!==0);
+ document.getElementById('desc').textContent=weather(c.weather_code);
+ document.getElementById('wind').textContent=n(c.wind_speed_10m)+' m/s';
+ document.getElementById('gust').textContent=n(c.wind_gusts_10m)+' m/s';
+ document.getElementById('pressure').textContent=n(c.pressure_msl,0)+' hPa';
+ document.getElementById('places').innerHTML=shown.map(x=>'<div class="place"><b>'+esc(x.name)+'</b><br><span class="place-icon" aria-hidden="true">'+weatherIcon(x.data.current.weather_code,x.data.current.is_day!==0)+'</span><strong>'+n(x.data.current.temperature_2m,0)+'°</strong><br>'+weather(x.data.current.weather_code)+' · Vindur '+n(x.data.current.wind_speed_10m)+' m/s</div>').join('');
+ document.getElementById('modelcards').innerHTML=primary.name==='Reykjavík'?data.models.map(x=>'<div class="model"><b>'+esc(x.name)+'</b><p>'+(x.current?n(x.current.temperature_2m)+'°C · Vindur '+n(x.current.wind_speed_10m)+' m/s · '+n(x.current.pressure_msl,0)+' hPa':esc(x.error||'Ekki tiltækt'))+'</p></div>').join(''):'<div class="model">Líkansamanburður er aðeins tiltækur fyrir Reykjavík.</div>';
+ markers.forEach(m=>map.removeLayer(m));markers=[];
+ shown.forEach(x=>{let q=x.data.current,m=L.circleMarker([x.lat,x.lon],{radius:7,color:'#69d5df',fillColor:'#69d5df',fillOpacity:.85}).addTo(map).bindPopup('<b>'+esc(x.name)+'</b><br>'+n(q.temperature_2m)+'°C<br>Vindur '+n(q.wind_speed_10m)+' m/s');markers.push(m)});
+ if(shown.length>1)map.fitBounds(shown.map(x=>[x.lat,x.lon]),{padding:[25,25],maxZoom:6});else map.setView([primary.lat,primary.lon],6);
+ const gusts=(day.wind_gusts_10m_max||[]).filter(Number.isFinite),rain=(day.precipitation_sum||[]).filter(Number.isFinite),pressures=(day.pressure_msl_mean||[]).filter(Number.isFinite);
+ const maxg=gusts.length?Math.max(...gusts):0,maxr=rain.length?Math.max(...rain):0,drop=pressures.length?pressures[0]-Math.min(...pressures):0,risks=[];
+ if(maxg>=18)risks.push('Vindhviður geta náð '+n(maxg)+' m/s.');
+ if(maxr>=20)risks.push('Úrkoma getur orðið '+n(maxr)+' mm á sólarhring.');
+ if(drop>=20)risks.push('Þrýstingur fellur um '+n(drop,0)+' hPa á spátímabilinu.');
+ document.getElementById('forecast-risks').innerHTML=risks.length?risks.map(x=>'<div class="alert">'+esc(x)+'</div>').join(''):'<p class="muted">Engin sterk sjálfvirk áhættumerki í 10 daga spánni.</p>';
+ map.invalidateSize();
+}
 async function load(){document.getElementById('status').textContent='Sæki gögn…';let errors=[];
 const tasks=await Promise.allSettled([json('/api/dashboard'),json('/api/alerts'),json('/api/observations'),json('/api/pressure-lows')]);
 const [forecast,alerts,obs,lows]=tasks.map(x=>x.status==='fulfilled'?x.value:null);
