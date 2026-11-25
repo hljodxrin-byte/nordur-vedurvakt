@@ -23,47 +23,47 @@
  .card{overflow:hidden}
 }
 
-/* Litríkara norðurljósaþema */
-:root{color-scheme:dark;--ink:#f1f7ff;--muted:#a8bdcf;--line:#34516a;--cyan:#63e1e8;--blue:#73a9ff;--violet:#a78bfa;--mint:#72e0bd;--amber:#ffd080}
-body{background:radial-gradient(ellipse at 12% -8%,#174b63 0,transparent 34%),radial-gradient(ellipse at 92% 12%,#33295c 0,transparent 30%),linear-gradient(145deg,#081522 0%,#0b1c2d 48%,#101b32 100%);color:var(--ink)}
-header{background:linear-gradient(100deg,#102b40ed,#1b2945ed 65%,#282348ed);border-bottom:1px solid #45617d;box-shadow:0 8px 30px #02091455}
-header b{color:var(--cyan);text-shadow:0 0 18px #63e1e866}
-header #status{color:#c5d8e8}
-h1{background:linear-gradient(95deg,#f3fbff 8%,#8deaf0 54%,#b5a5ff 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
-h2{color:#dff4ff}
+/* Íslenski fáninn sem litainnblástur: djúpblátt, hvítt og fágað rautt */
+:root{color-scheme:dark;--flag-blue:#02529c;--flag-red:#dc1e35;--flag-white:#f7f8fa;--ink:#f5f8fc;--muted:#b4c5d8}
+body{background:radial-gradient(ellipse at 8% -12%,#164b80 0,transparent 38%),radial-gradient(ellipse at 100% 8%,#3a1828 0,transparent 28%),linear-gradient(145deg,#07182b 0%,#0a2340 52%,#101b30 100%);color:var(--ink)}
+header{background:linear-gradient(100deg,#06264aee,#0d3157ee 68%,#14233bee);border-bottom:1px solid #37618a;box-shadow:0 8px 30px #02091466}
+header b{color:var(--flag-white);text-shadow:0 0 16px #6ba9e877}
+header #status{color:#d8e7f7}
+h1{background:linear-gradient(95deg,#fff 0%,#dcecff 58%,#ffb5bf 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+h2{color:#f1f6fc}
 .muted{color:var(--muted)}
-.card{background:linear-gradient(145deg,#142c40f2,#12253af2 60%,#1b2440f2);border:1px solid #38536e;border-radius:17px;box-shadow:0 12px 32px #020b1850,inset 0 1px #ffffff0a;position:relative}
-.card:before{content:"";position:absolute;left:18px;right:18px;top:0;height:2px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,var(--cyan),var(--blue),var(--violet));opacity:.8}
-.hero{background:radial-gradient(ellipse at 90% 8%,#315d8166,transparent 48%),linear-gradient(145deg,#15394b,#182b48 70%,#28274b);border-color:#47718a}
-.hero .temp{color:#fff;text-shadow:0 0 28px #78dce866}
-.hero .stats>div{color:#b9d2e2}
-.hero .stats b{color:var(--mint)}
-.weather-symbol{filter:drop-shadow(0 4px 12px #5fdce966)}
-#map{border:1px solid #3b5c79;box-shadow:inset 0 0 0 1px #ffffff08}
-.place,.model{background:linear-gradient(140deg,#1b3b50,#263252);border:1px solid #3c5c78;border-radius:12px;box-shadow:0 5px 14px #020b1833}
-.place strong{color:#9debf0}
+.card{background:linear-gradient(145deg,#102d4bfa,#102641fa 62%,#18283ff7);border:1px solid #315477;border-radius:17px;box-shadow:0 12px 32px #020b1855,inset 0 1px #ffffff0a;position:relative}
+.card:before{content:"";position:absolute;left:18px;right:18px;top:0;height:2px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,var(--flag-blue),var(--flag-white) 52%,var(--flag-red));opacity:.95}
+.hero{background:radial-gradient(ellipse at 90% 8%,#2463a866,transparent 48%),linear-gradient(145deg,#103b68,#102e50 70%,#202941);border-color:#47729c}
+.hero .temp{color:#fff;text-shadow:0 0 25px #8dbce866}
+.hero .stats>div{color:#c6d8eb}
+.hero .stats b{color:#fff}
+.weather-symbol{filter:drop-shadow(0 4px 12px #8dbce855)}
+#map{border:1px solid #3b628b;box-shadow:inset 0 0 0 1px #ffffff08}
+.place,.model{background:linear-gradient(140deg,#173a60,#1d3150);border:1px solid #3b5d82;border-radius:12px;box-shadow:0 5px 14px #020b1833}
+.place strong{color:#fff}
 .place-icon{filter:drop-shadow(0 2px 5px #0007)}
-td,th{border-bottom-color:#304b65}
-th{color:#a9c6dc}
-.scroll tbody tr{border-color:#3d5d78}
-.scroll tbody td:first-child{color:#91e8ef}
-.alert{background:linear-gradient(110deg,#44351f66,#20354a);border-left-color:var(--amber)}
-.alert.red{border-left-color:#ff777f;background:linear-gradient(110deg,#542b4266,#263149)}
-.alert.green{border-left-color:var(--mint);background:linear-gradient(110deg,#17483f88,#20374a)}
-.alert-local-pill{background:#175d56;color:#b8ffea}
-.pill{background:#294966;color:#d8efff}
-.location-picker{background:linear-gradient(110deg,#143448,#202846 70%,#29264a);border-color:#3c607b;box-shadow:0 8px 24px #020b1833}
-.location-hint{color:#abc7da}
-.location-chip{background:linear-gradient(145deg,#1d3b50,#25324d);border-color:#45627d;color:#e4f3ff}
-.location-chip:hover{background:linear-gradient(145deg,#28566a,#35436a);border-color:var(--cyan)}
-.location-chip.active{background:linear-gradient(120deg,#12636b,#344b7d);border-color:#80f0ed;box-shadow:0 0 0 1px #63e1e855,0 5px 18px #35d4dc2b}
-.region-choice label{color:#b6cbe0}
-.region-choice select{background:#1b3450;border-color:#4a6a88;color:#f1f7ff}
-button{background:linear-gradient(110deg,#69e1e5,#8bb8ff 72%,#b6a0ff);color:#081b2a;box-shadow:0 4px 15px #5dbedc33;transition:transform .16s,filter .16s,box-shadow .16s}
-button:hover{filter:brightness(1.09);transform:translateY(-1px);box-shadow:0 7px 20px #5dbedc55}
-a{color:#83e5ee}
-.error{color:#ffaaaa}
-@media(max-width:800px){.card{border-radius:15px}.hero{background:radial-gradient(ellipse at 95% 4%,#3c6f8a77,transparent 48%),linear-gradient(145deg,#15394b,#182b48 70%,#28274b)}}
+td,th{border-bottom-color:#304e70}
+th{color:#c0d1e4}
+.scroll tbody tr{border-color:#3d6086}
+.scroll tbody td:first-child{color:#dceaff}
+.alert{background:linear-gradient(110deg,#493a2a66,#203956);border-left-color:#f2c36b}
+.alert.red{border-left-color:var(--flag-red);background:linear-gradient(110deg,#5a263766,#26334c)}
+.alert.green{border-left-color:#75d6b1;background:linear-gradient(110deg,#17483f88,#20374a)}
+.alert-local-pill{background:#174d79;color:#e5f2ff}
+.pill{background:#294d73;color:#e4effb}
+.location-picker{background:linear-gradient(110deg,#10365a,#142d4c 70%,#29283d);border-color:#3c6289;box-shadow:0 8px 24px #020b1833}
+.location-hint{color:#c1d4e8}
+.location-chip{background:linear-gradient(145deg,#173b60,#1b3150);border-color:#45688e;color:#edf5ff}
+.location-chip:hover{background:linear-gradient(145deg,#20558b,#263c60);border-color:#fff}
+.location-chip.active{background:linear-gradient(110deg,#064b8c,#173e69);color:#fff;border-color:#f7f8fa;box-shadow:0 0 0 1px #dc1e3580,0 5px 18px #02529c55}
+.region-choice label{color:#c6d7e9}
+.region-choice select{background:#173657;border-color:#4b7096;color:#f5f8fc}
+button{background:linear-gradient(105deg,#fff 0%,#e8eff8 72%,#f6dce0 100%);color:#08264a;border:1px solid #dbe7f5;box-shadow:0 4px 15px #020b1833;transition:transform .16s,filter .16s,box-shadow .16s}
+button:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:0 7px 20px #8dbce844}
+a{color:#a9d3ff}
+.error{color:#ffb2ba}
+@media(max-width:800px){.card{border-radius:15px}.hero{background:radial-gradient(ellipse at 95% 4%,#2463a877,transparent 48%),linear-gradient(145deg,#103b68,#102e50 70%,#202941)}}
 
 </style></head><body><header><b>N O R Ð U R</b><span id="status">Sæki veðurgögn…</span></header><main><div class="intro"><div><div class="muted">ÍSLAND · NORÐUR-ATLANTSHAF</div><h1>Veðurvakt Íslands</h1><p class="muted">10 daga veðurspá, rauntímamælingar, lægðagreining og opinberar viðvaranir.</p></div><button onclick="load()">Uppfæra gögn</button></div><section class="location-picker"><div class="location-heading"><label>Skoða veður á:</label><span class="location-hint">Veldu stað eða landshluta</span></div><div class="location-choices" role="group" aria-label="Velja veðurspástað"><button type="button" class="location-chip active" data-location="all" aria-pressed="true" onclick="changeLocation('all')"><span class="location-mark">🇮🇸</span><span>Allt landið</span></button><button type="button" class="location-chip" data-location="Reykjavík" aria-pressed="false" onclick="changeLocation('Reykjavík')"><img class="location-mark official-mark" src="https://styles.reykjavik.is/assets/reykjavik-logo-notext.svg" alt="Skjaldarmerki Reykjavíkurborgar" loading="eager"><span>Reykjavík</span></button><button type="button" class="location-chip" data-location="Akureyri" aria-pressed="false" onclick="changeLocation('Akureyri')"><span class="location-mark">🏔️</span><span>Akureyri</span></button><button type="button" class="location-chip" data-location="Ísafjörður" aria-pressed="false" onclick="changeLocation('Ísafjörður')"><span class="location-mark">⛰️</span><span>Ísafjörður</span></button><button type="button" class="location-chip" data-location="Egilsstaðir" aria-pressed="false" onclick="changeLocation('Egilsstaðir')"><span class="location-mark">🌲</span><span>Egilsstaðir</span></button><button type="button" class="location-chip" data-location="Vík" aria-pressed="false" onclick="changeLocation('Vík')"><span class="location-mark">🌋</span><span>Vík</span></button><button type="button" class="location-chip" data-location="Vestmannaeyjar" aria-pressed="false" onclick="changeLocation('Vestmannaeyjar')"><img class="location-mark official-mark" src="https://www.vestmannaeyjar.is/cdn/transforms/_768xAUTO_crop_center-center_none/Vestmannaeyjabaer-merki-litur-470.jpg?v=1768226399" alt="Byggðarmerki Vestmannaeyjabæjar" loading="eager"><span>Vestmannaeyjar</span></button></div><div class="region-choice"><label for="region-select">Landshluti</label><select id="region-select" onchange="changeLocation(this.value)"><option value="">Veldu landshluta…</option><option value="region:capital">Höfuðborgarsvæðið</option><option value="region:north">Norðurland</option><option value="region:westfjords">Vestfirðir</option><option value="region:east">Austurland</option><option value="region:south">Suðurland</option></select></div></section><div class="grid">
 <section class="card hero"><div class="muted">NÚNA · REYKJAVÍK · SPÁ</div><div style="display:flex;align-items:center;gap:8px"><span id="weather-icon" class="weather-symbol" aria-hidden="true">🌤️</span><div id="temp" class="temp">—°</div></div><div id="desc">Sæki gögn…</div><div class="stats"><div>Vindur<b id="wind">—</b></div><div>Hviður<b id="gust">—</b></div><div>Þrýstingur<b id="pressure">—</b></div></div><div id="forecast-risks"></div></section>
