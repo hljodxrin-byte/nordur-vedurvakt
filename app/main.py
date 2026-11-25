@@ -17,7 +17,7 @@ PLACES = [
 ]
 URL="https://api.open-meteo.com/v1/forecast"
 IMO_WEATHER="https://api.vedur.is/weather"
-IMO_CAP="https://api.vedur.is/cap"
+IMO_CAP="https://api.vedur.is/cap/v1"
 CACHE={"dashboard":{"at":0,"data":None},"alerts":{"at":0,"data":None},"observations":{"at":0,"data":None},"lows":{"at":0,"data":None}}
 TTL=int(os.getenv("CACHE_TTL_SECONDS","900"))
 
@@ -68,18 +68,23 @@ async def alerts():
  if cache_ok("alerts"): return CACHE["alerts"]["data"]
  async with httpx.AsyncClient() as client:
   alerts_data=await get_json(client,f"{IMO_CAP}/capbroker/active/detailed/all")
-  regions=await get_json(client,f"{IMO_CAP}/capcreator/forecast_regions",{"region_type":"met-preset"})
- region_names={r.get("id"):r.get("name_is") or r.get("name_en") for r in regions} if isinstance(regions,list) else {}
+  regions=await get_json(client,f"{IMO_CAP}/capcreator/forecast_regions")
+ region_rows=regions if isinstance(regions,list) else regions.get("data",[]) if isinstance(regions,dict) else []
+ region_names={str(r.get("id") or r.get("area_id")):r.get("name_is") or r.get("name_en") or r.get("name") for r in region_rows}
+ alert_rows=alerts_data if isinstance(alerts_data,list) else alerts_data.get("messages",alerts_data.get("data",[])) if isinstance(alerts_data,dict) else []
  items=[]
- for a in (alerts_data or []):
+ for a in alert_rows:
+  info=a.get("info",{}) if isinstance(a.get("info"),dict) else {}
+  area=a.get("area",{}) if isinstance(a.get("area"),dict) else {}
+  area_id=a.get("area_id") or area.get("area_id") or area.get("id")
   items.append({
-   "identifier":a.get("identifier"),"headline":a.get("headline_is") or a.get("event_is") or "Veðurviðvörun",
-   "description":a.get("description_is") or a.get("description_en") or "",
-   "event":a.get("event_is") or a.get("event_en"),"severity":a.get("severity"),
-   "urgency":a.get("urgency"),"certainty":a.get("certainty"),
-   "area":region_names.get(a.get("area_id"),f"Svæði {a.get('area_id')}"),
-   "area_id":a.get("area_id"),"onset":a.get("onset"),"expires":a.get("expires"),
-   "sent":a.get("sent"),"polygon":a.get("polygon") or [],
+   "identifier":a.get("identifier"),"headline":a.get("headline_is") or info.get("headline_is") or info.get("headline") or a.get("event_is") or a.get("event") or "Veðurviðvörun",
+   "description":a.get("description_is") or info.get("description_is") or info.get("description") or a.get("description_en") or "",
+   "event":a.get("event_is") or info.get("event") or a.get("event_en"),"severity":a.get("severity") or info.get("severity"),
+   "urgency":a.get("urgency") or info.get("urgency"),"certainty":a.get("certainty") or info.get("certainty"),
+   "area":region_names.get(str(area_id),area.get("area_desc") or area.get("areaDesc") or f"Svæði {area_id}" if area_id else "Ísland"),
+   "area_id":area_id,"onset":a.get("onset") or info.get("onset"),"expires":a.get("expires") or info.get("expires"),
+   "sent":a.get("sent"),"polygon":a.get("polygon") or area.get("polygon") or [],
    "source":"Veðurstofa Íslands","url":"https://www.vedur.is/viðvaranir"
   })
  data={"generated_at":time.time(),"source":"Veðurstofa Íslands – CAP API","alerts":items,"count":len(items)}
@@ -91,18 +96,38 @@ async def observations():
  """Latest automatic weather-station observations from IMO open API."""
  if cache_ok("observations"): return CACHE["observations"]["data"]
  async with httpx.AsyncClient() as client:
-  data=await get_json(client,f"{IMO_WEATHER}/observations/aws/10min/latest",{"region_id":12,"parameters":"basic","format":"json"})
- rows=data if isinstance(data,list) else data.get("data",[]) if isinstance(data,dict) else []
+  stations_data=await get_json(client,f"{IMO_WEATHER}/stations",{"active":"true","station_type":"sj"})
+  stations=stations_data if isinstance(stations_data,list) else stations_data.get("data",[]) if isinstance(stations_data,dict) else []
+  # Select the closest two active automatic stations to each forecast town.
+  selected={}
+  for place in PLACES:
+   candidates=[]
+   for station in stations:
+    lat=station.get("lat") or station.get("latitude")
+    lon=station.get("lon") or station.get("longitude")
+    sid=station.get("station") or station.get("station_id") or station.get("id")
+    if lat is None or lon is None or sid is None: continue
+    distance=(float(lat)-place["lat"])**2+(float(lon)-place["lon"])**2
+    candidates.append((distance,station))
+   for _,station in sorted(candidates,key=lambda x:x[0])[:2]:
+    sid=station.get("station") or station.get("station_id") or station.get("id")
+    selected[str(sid)]=station
+  async def one(station):
+   sid=station.get("station") or station.get("station_id") or station.get("id")
+   return await get_json(client,f"{IMO_WEATHER}/observations/aws/10min/latest",{"parameters":"basic","station_id":sid,"format":"json"})
+  results=await asyncio.gather(*(one(s) for s in selected.values()),return_exceptions=True)
  cleaned=[]
- for x in rows:
-  cleaned.append({
-   "station":x.get("station"),"name":x.get("name"),"time":x.get("time"),
-   "temperature":x.get("t"),"wind":x.get("f"),"gust":x.get("fg"),
-   "direction":x.get("d_txt"),"pressure":x.get("ps") or x.get("p"),
-   "precipitation":x.get("r"),"latitude":x.get("lat") or x.get("latitude"),
-   "longitude":x.get("lon") or x.get("longitude")
-  })
- cleaned.sort(key=lambda x: (x["name"] or ""))
+ for station,result in zip(selected.values(),results):
+  if isinstance(result,Exception): continue
+  rows=result if isinstance(result,list) else result.get("data",[]) if isinstance(result,dict) else []
+  for x in rows:
+   cleaned.append({
+    "station":x.get("station"),"name":x.get("name") or station.get("name"),
+    "time":x.get("time"),"temperature":x.get("t"),"wind":x.get("f"),
+    "gust":x.get("fg"),"direction":x.get("d_txt"),"pressure":x.get("ps") or x.get("p"),
+    "precipitation":x.get("r"),"latitude":station.get("lat"),"longitude":station.get("lon")
+   })
+ cleaned.sort(key=lambda x:(x["name"] or ""))
  result={"generated_at":time.time(),"source":"Veðurstofa Íslands – veðurathuganir","count":len(cleaned),"observations":cleaned}
  CACHE["observations"].update(at=time.time(),data=result)
  return result
