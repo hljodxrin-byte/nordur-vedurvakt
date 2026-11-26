@@ -42,9 +42,9 @@ CACHE={"dashboard":{"at":0,"data":None},"alerts":{"at":0,"data":None},"observati
 ROAD_CACHE={}
 TTL=max(1800,int(os.getenv("CACHE_TTL_SECONDS","1800")))
 
-async def get_json(client,url,params=None,headers=None):
+async def get_json(client,url,params=None,headers=None,timeout=35):
  request_headers=headers or {"User-Agent":"Nordur-Vedurvakt/1.0 (https://github.com/hljodxrin-byte/nordur-vedurvakt)"}
- r=await client.get(url,params=params,timeout=35,headers=request_headers)
+ r=await client.get(url,params=params,timeout=timeout,headers=request_headers)
  r.raise_for_status()
  return r.json()
 
@@ -183,12 +183,28 @@ async def dashboard():
 async def alerts():
  """Official active CAP alerts from the Icelandic Met Office."""
  if cache_ok("alerts"): return CACHE["alerts"]["data"]
+ # CAP-viðmótið getur stundum verið mjög hægt. Sækjum gögn samhliða
+ # og látum ekki ein biluð svör stöðva allt mælaborðið.
  async with httpx.AsyncClient() as client:
-  alerts_data=await get_json(client,f"{IMO_CAP}/capbroker/active/detailed/all")
-  regions=await get_json(client,f"{IMO_CAP}/capcreator/forecast_regions")
+  alerts_result,regions_result=await asyncio.gather(
+   get_json(client,f"{IMO_CAP}/capbroker/active/detailed/all",timeout=10),
+   get_json(client,f"{IMO_CAP}/capcreator/forecast_regions",timeout=10),
+   return_exceptions=True
+  )
+ if isinstance(alerts_result,Exception):
+  cached=CACHE["alerts"]["data"]
+  if cached is not None:
+   stale={**cached,"stale":True,"warning":"Ekki tókst að uppfæra viðvaranir; sýni síðast sóttu gögn."}
+   return stale
+  alert_rows=[]
+  source_warning="Ekki tókst að sækja nýjar viðvaranir frá Veðurstofu Íslands."
+ else:
+  alerts_data=alerts_result
+  alert_rows=alerts_data if isinstance(alerts_data,list) else alerts_data.get("messages",alerts_data.get("data",[])) if isinstance(alerts_data,dict) else []
+  source_warning=None
+ regions=regions_result if not isinstance(regions_result,Exception) else []
  region_rows=regions if isinstance(regions,list) else regions.get("data",[]) if isinstance(regions,dict) else []
  region_names={str(r.get("id") or r.get("area_id")):r.get("name_is") or r.get("name_en") or r.get("name") for r in region_rows}
- alert_rows=alerts_data if isinstance(alerts_data,list) else alerts_data.get("messages",alerts_data.get("data",[])) if isinstance(alerts_data,dict) else []
  items=[]
  for a in alert_rows:
   info=a.get("info",{}) if isinstance(a.get("info"),dict) else {}
@@ -205,8 +221,10 @@ async def alerts():
    "source":"Veðurstofa Íslands","url":"https://www.vedur.is/viðvaranir"
   })
  data={"generated_at":time.time(),"source":"Veðurstofa Íslands – CAP API","alerts":items,"count":len(items)}
+ if source_warning: data["warning"]=source_warning
  CACHE["alerts"].update(at=time.time(),data=data)
  return data
+
 
 @app.get("/api/observations")
 async def observations():
