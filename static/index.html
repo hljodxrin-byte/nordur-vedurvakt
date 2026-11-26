@@ -192,7 +192,11 @@ function roadMapStyle(feature){
  return {color,weight,opacity:.9,lineCap:'round',lineJoin:'round'};
 }
 function roadMapPopup(p){
- return '<b>'+esc(p.status||'Vegaupplýsing')+'</b><br><strong>'+esc(p.road||'')+'</strong><br>'+esc(p.description||'')+
+ const code=roadMapStatusCode(p);
+ const wording=(String(p.status||'')+' '+String(p.description||'')).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('is');
+ const explicitlyPassable=code==='clear'||/(^|[^a-z])(greidfaert|vegkafli\\s+faer|vegur\\s+faer|faert)([^a-z]|$)/.test(wording);
+ const label=explicitlyPassable&&p.kind==='road'?'Vegkafli fær':(p.status||'Óþekkt');
+ return '<b>'+esc(label)+'</b><br><strong>'+esc(p.road||'')+'</strong><br>'+esc(p.description||'')+
  (p.extra?'<br>'+esc(p.extra):'')+(p.work?'<br>'+esc(p.work):'')+(p.weight?'<br>'+esc(p.weight):'')+
  (p.updated_at?'<br><small>Uppfært: '+fmtDate(p.updated_at)+'</small>':'');
 }
