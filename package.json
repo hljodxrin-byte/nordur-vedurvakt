@@ -1,0 +1,19 @@
+{
+  "name": "helvitis-vedrid-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Capacitor mobile wrapper for Helvítis Veðrið",
+  "scripts": {
+    "cap:sync": "cap sync",
+    "cap:ios": "cap open ios",
+    "cap:android": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/core": "^7.4.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.3",
+    "@capacitor/ios": "^7.4.3",
+    "@capacitor/android": "^7.4.3"
+  }
+}
