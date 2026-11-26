@@ -155,12 +155,24 @@ function renderDailyRows(day){
 }
 const regionLabels={capital:'Höfuðborgarsvæðið',west:'Vesturland',north:'Norðurland',westfjords:'Vestfirðir',east:'Austurland',south:'Suðurland'};
 
+function roadMapStatusCode(p){
+ const raw=String(p.code||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase();
+ const label=String(p.status||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase();
+ const description=String(p.description||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase();
+ const value=raw+' '+label+' '+description;
+ if(/ALLUR_AKSTUR_BANN|AKSTUR BANNA[DÐ]UR|VEGUR LOKA[DÐ]UR|LOKA[DÐ]UR|OFAERT|OF[AÆ]RT/.test(value))return 'closed';
+ if(/GREIDFAERT|GREI[DÐ]F[AÆ]RT/.test(value))return 'clear';
+ if(/FAERT_FJALLABILUM|F[AÆ]RT FJALLABILUM/.test(value))return 'mountain';
+ if(/FLUGHALT|HALKA|HALKUBLETTIR|HALKUBLETT|THUNGFAERT|THUNGFAER|TH[AÆ]FING|SNJOTHEKJA|SNJO|KRAP/.test(value))return 'difficult';
+ return 'unknown';
+}
 function roadMapStyle(feature){
- const p=feature.properties||{},code=p.code||'';
- let color='#e8bd61',weight=feature.geometry?.type==='LineString'||feature.geometry?.type==='MultiLineString'?5:2;
- if(['ALLUR_AKSTUR_BANN','LOKAD','OFAERT_VEDUR','OFAERT_ANNAD'].includes(code))color='#ef5965';
- else if(code==='GREIDFAERT'||code==='FAERT_FJALLABILUM')color='#63d6a0';
- else if(['HALKA','HALKUBLETTIR','THUNGFAERT','THAEFINGUR','SNJOTHEKJA','KRAP','FLUGHALT'].includes(code))color='#f0bd63';
+ const p=feature.properties||{},type=feature.geometry?.type;
+ const zoom=map.getZoom();
+ const isLine=type==='LineString'||type==='MultiLineString';
+ const weight=isLine?Math.max(1,Math.min(5.5,1.15+(zoom-3)*.55)):2;
+ const status=roadMapStatusCode(p);
+ const color=status==='closed'?'#ef5965':status==='clear'?'#63d6a0':status==='difficult'||status==='mountain'?'#f0bd63':'#aeb8c5';
  return {color,weight,opacity:.9,lineCap:'round',lineJoin:'round'};
 }
 function roadMapPopup(p){
@@ -189,6 +201,7 @@ function renderRoadMap(data){
  const stamp=data.updated_at?' · gögn Vegagerðarinnar uppfærð '+fmtDate(data.updated_at):'';
  document.getElementById('road-map-status').textContent=(roadMapVisible?features.length+' færslur sýndar á kortinu':'Vegaupplýsingar faldar')+stamp+' · endurnýjað sjálfkrafa á 5 mínútna fresti';
 }
+map.on('zoomend',()=>{roadMapLayer.setStyle(roadMapStyle);});
 async function loadRoadMap(){
  const status=document.getElementById('road-map-status');
  try{const data=await json('/api/road-map');renderRoadMap(data);}
