@@ -186,6 +186,29 @@ body.road-open .road-backdrop{opacity:1;pointer-events:auto}body.road-open .road
  .hourly-head>div{min-width:0;width:100%}
  .hourly-time{display:block;width:auto;min-width:0;max-width:100%;white-space:normal;text-align:left;overflow-wrap:anywhere;line-height:1.35}
 }
+
+/* Hreyfimyndaður veðurbakgrunnur í klukkustundaspánni. */
+.hourly-timeline{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(145deg,#142f3b,#102631);transition:background .7s ease}
+.hourly-timeline:before,.hourly-timeline:after{content:"";position:absolute;inset:-35%;z-index:0;pointer-events:none;opacity:0;transition:opacity .6s ease}
+.hourly-timeline>*{position:relative;z-index:1}
+.hourly-timeline.weather-sunny{background:linear-gradient(135deg,#23475a,#173345 58%,#102631)}
+.hourly-timeline.weather-sunny:before{opacity:.75;background:radial-gradient(circle at 85% 8%,#f8d77b55 0,transparent 32%);animation:weatherGlow 8s ease-in-out infinite alternate}
+.hourly-timeline.weather-cloudy{background:linear-gradient(135deg,#294452,#172f3c 65%,#102631)}
+.hourly-timeline.weather-cloudy:before{opacity:.55;background:radial-gradient(ellipse at 15% 15%,#c6dce322 0,transparent 38%),radial-gradient(ellipse at 75% 30%,#b8d0dc22 0,transparent 42%);animation:cloudDrift 18s ease-in-out infinite alternate}
+.hourly-timeline.weather-rain,.hourly-timeline.weather-storm{background:linear-gradient(135deg,#203e51,#102a3b 65%,#0c202e)}
+.hourly-timeline.weather-rain:before,.hourly-timeline.weather-storm:before{opacity:.48;background:repeating-linear-gradient(108deg,transparent 0 18px,#a8e9f21c 19px 21px,transparent 22px 37px);animation:rainFall .8s linear infinite}
+.hourly-timeline.weather-snow{background:linear-gradient(135deg,#36566a,#1c394b 65%,#102631)}
+.hourly-timeline.weather-snow:before{opacity:.72;background-image:radial-gradient(circle,#e8f8ffbb 1px,transparent 2px),radial-gradient(circle,#e8f8ff88 1.5px,transparent 2.5px);background-size:37px 43px,61px 67px;background-position:0 0,19px 23px;animation:snowFall 7s linear infinite}
+.hourly-timeline.weather-fog{background:linear-gradient(135deg,#344a55,#1c303b 65%,#102631)}
+.hourly-timeline.weather-fog:before{opacity:.45;background:repeating-linear-gradient(0deg,transparent 0 17px,#d8e8ed18 18px 24px,transparent 25px 39px);animation:fogDrift 9s ease-in-out infinite alternate}
+.hourly-timeline.weather-storm:after{opacity:0;background:radial-gradient(ellipse at 70% 15%,#dff8ff99 0,transparent 28%);animation:lightningFlash 7s infinite}
+@keyframes weatherGlow{to{transform:translate(-5%,4%) scale(1.12);opacity:.55}}
+@keyframes cloudDrift{to{transform:translateX(5%)}}
+@keyframes rainFall{to{transform:translate(-12px,24px)}}
+@keyframes snowFall{to{background-position:20px 100px,48px 123px}}
+@keyframes fogDrift{to{transform:translateX(8%)}}
+@keyframes lightningFlash{0%,91%,94%,100%{opacity:0}92%,93%{opacity:.8}}
+@media(prefers-reduced-motion:reduce){.hourly-timeline:before,.hourly-timeline:after{animation:none!important}.hourly-timeline{transition:none}}
 </style></head><body><header><b>HELVÍTIS VEÐRIÐ</b><button class="road-menu-button" type="button" onclick="toggleRoadSidebar(true)" aria-expanded="false" aria-controls="road-sidebar">🚗 Vegir og færð</button><span id="status">Sæki veðurgögn…</span></header><div class="road-backdrop" onclick="toggleRoadSidebar(false)" aria-hidden="true"></div><aside id="road-sidebar" class="road-sidebar" aria-label="Upplýsingar um vegi og færð" aria-hidden="true"><div class="road-sidebar-head"><div><div class="muted">VEGAGERÐIN · STAÐBUNDNAR UPPLÝSINGAR</div><h2>Vegir og færð</h2></div><button class="road-close" type="button" onclick="toggleRoadSidebar(false)" aria-label="Loka">×</button></div><p id="road-location" class="muted">Finna svæðið þitt…</p><div id="road-sidebar-content">Sæki upplýsingar um færð…</div><div class="road-tools"><a href="https://umferdin.is/" target="_blank" rel="noopener">Opna umferdin.is ↗</a><a href="https://www.vegagerdin.is/ferdaupplysingar" target="_blank" rel="noopener">Ferðaupplýsingar ↗</a></div><p class="muted">Gögn frá Vegagerðinni. Færð getur breyst hratt; athugaðu alltaf nýjustu upplýsingar áður en lagt er af stað.</p></aside><main><div class="intro"><div><div class="muted">ÍSLAND · NORÐUR-ATLANTSHAF</div><h1 aria-label="Helvítis Veðrið"><span class="title-letter red">H</span><span class="title-letter white">e</span><span class="title-letter blue">l</span><span class="title-letter red">v</span><span class="title-letter white">í</span><span class="title-letter blue">t</span><span class="title-letter red">i</span><span class="title-letter white">s</span> <span class="title-letter blue">V</span><span class="title-letter red">e</span><span class="title-letter white">ð</span><span class="title-letter blue">r</span><span class="title-letter red">i</span><span class="title-letter white">ð</span></h1><p class="muted">10 daga veðurspá, rauntímamælingar, lægðagreining og opinberar viðvaranir.</p></div><button onclick="load()">Uppfæra gögn</button></div><div class="dashboard-layout"><aside class="location-sidebar" aria-label="Val á veðurstað"><section class="location-picker">
 <div class="location-heading"><div><label>Skoða veður á</label><span class="location-hint">Veldu landshluta eða bæ</span></div></div>
 <div class="location-featured"><button type="button" class="region-tile all-tile active" data-location="all" aria-pressed="true" onclick="changeLocation('all')"><span class="all-icon">🇮🇸</span><span class="region-tile-name">Allt landið</span><span class="region-tile-count">Yfirlit yfir Ísland</span></button><div class="region-grid"><button type="button" class="region-tile" data-location="region:capital" aria-pressed="false" onclick="changeLocation('region:capital')"><span class="region-tile-name">Höfuðborgarsvæðið</span><span class="region-tile-count">20 staðir</span></button><button type="button" class="region-tile" data-location="region:west" aria-pressed="false" onclick="changeLocation('region:west')"><span class="region-tile-name">Vesturland</span><span class="region-tile-count">3 staðir</span></button><button type="button" class="region-tile" data-location="region:westfjords" aria-pressed="false" onclick="changeLocation('region:westfjords')"><span class="region-tile-name">Vestfirðir</span><span class="region-tile-count">3 staðir</span></button><button type="button" class="region-tile" data-location="region:north" aria-pressed="false" onclick="changeLocation('region:north')"><span class="region-tile-name">Norðurland</span><span class="region-tile-count">4 staðir</span></button><button type="button" class="region-tile" data-location="region:east" aria-pressed="false" onclick="changeLocation('region:east')"><span class="region-tile-name">Austurland</span><span class="region-tile-count">3 staðir</span></button><button type="button" class="region-tile" data-location="region:south" aria-pressed="false" onclick="changeLocation('region:south')"><span class="region-tile-name">Suðurland</span><span class="region-tile-count">6 staðir</span></button></div></div>
@@ -383,6 +406,11 @@ function updateHourlyTimelineValue(value){
  if(!hourlyForecastRows.length)return;
  selectedHourIndex=Math.max(0,Math.min(Number(value)||0,hourlyForecastRows.length-1));
  const row=hourlyForecastRows[selectedHourIndex];
+ const timeline=document.getElementById('hourly-timeline');
+ const code=Number(row.weather_code);
+ const weatherClass=code===0||code===1?'weather-sunny':[2,3].includes(code)?'weather-cloudy':[45,48].includes(code)?'weather-fog':[71,73,75,77,85,86].includes(code)?'weather-snow':[95,96,99].includes(code)?'weather-storm':[51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)?'weather-rain':'weather-cloudy';
+ timeline.classList.remove('weather-sunny','weather-cloudy','weather-fog','weather-rain','weather-snow','weather-storm');
+ timeline.classList.add(weatherClass);
  document.getElementById('hourly-slider').value=String(selectedHourIndex);
  document.getElementById('hourly-time').textContent=hourlyTimeLabel(row.time);
  document.getElementById('hourly-icon').innerHTML=weatherIcon(row.weather_code,row.is_day!==0);
