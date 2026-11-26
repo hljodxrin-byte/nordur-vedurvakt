@@ -316,6 +316,8 @@ async def roads(lat:float=64.1466,lon:float=-21.9426):
    if kind=="road":
     raw=_road_value(props,"AstandYfirbord") or "OTHEKKT"
     extra=_road_value(props,"AstandVidbotaruppl")
+    extra_code=_road_value(props,"AstandVidbotaruppl")
+    work_code=_road_value(props,"FrkvAudkenni")
     title=_road_value(props,"FulltNafnButs","StuttNafnButs") or "Vegkafli"
     description=_road_value(props,"AstandLysing") or ROAD_STATUS_IS.get(str(raw).upper(),str(raw))
     work=_road_value(props,"FrkvLysing")
@@ -324,7 +326,7 @@ async def roads(lat:float=64.1466,lon:float=-21.9426):
     updated=_road_value(props,"DagsKeyrtUt")
    else:
     raw=_road_value(props,"Astand") or "ANNAD"
-    extra=None
+    extra=None;extra_code=None;work_code=None
     title=_road_value(props,"Aths") or "Staðbundin tilkynning"
     description=_road_value(props,"Lysing") or str(raw)
     work=None;weight=None
