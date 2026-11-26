@@ -22,6 +22,7 @@ YR_USER_AGENT="Nordur-Vedurvakt/1.0 (https://github.com/hljodxrin-byte/nordur-ve
 IMO_WEATHER="https://api.vedur.is/weather"
 IMO_CAP="https://api.vedur.is/cap/v1"
 CACHE={"dashboard":{"at":0,"data":None},"alerts":{"at":0,"data":None},"observations":{"at":0,"data":None},"lows":{"at":0,"data":None}}
+ROAD_CACHE={}
 TTL=max(1800,int(os.getenv("CACHE_TTL_SECONDS","1800")))
 
 async def get_json(client,url,params=None,headers=None):
@@ -230,6 +231,79 @@ async def observations():
  result={"generated_at":time.time(),"source":"Veðurstofa Íslands – veðurathuganir","count":len(cleaned),"observations":cleaned}
  CACHE["observations"].update(at=time.time(),data=result)
  return result
+
+
+ROAD_WFS="https://gagnaveita.vegagerdin.is/geoserver/gis/ows"
+ROAD_STATUS_RANK={"ALLUR_AKSTUR_BANN":0,"LOKAD":1,"OFAERT_VEDUR":2,"OFAERT_ANNAD":3,"FLUGHALT":4,"HALKA":5,"HALKUBLETTIR":6,"THUNGFAERT":7,"THAEFINGUR":8,"SNJOTHEKJA":9,"KRAP":10,"GREIDFAERT":11}
+ROAD_STATUS_IS={"ALLUR_AKSTUR_BANN":"Allur akstur bannaður","LOKAD":"Vegur lokaður","OFAERT_VEDUR":"Ófært vegna veðurs","OFAERT_ANNAD":"Ófært","FLUGHALT":"Flughált","HALKA":"Hálka","HALKUBLETTIR":"Hálkublettir","THUNGFAERT":"Þungfært","THAEFINGUR":"Þæfingsfærð","SNJOTHEKJA":"Snjóþekja","KRAP":"Krap","GREIDFAERT":"Greiðfært","FAERT_FJALLABILUM":"Fært fjallabílum","OTHEKKT":"Óþekkt"}
+def _road_value(props,*names):
+ for name in names:
+  for key,value in props.items():
+   if key.lower()==name.lower() and value not in (None,""): return value
+ return None
+def _road_coords(geometry):
+ if not isinstance(geometry,dict): return []
+ coords=geometry.get("coordinates")
+ found=[]
+ def walk(value):
+  if isinstance(value,(list,tuple)) and len(value)>=2 and all(isinstance(v,(int,float)) for v in value[:2]):
+   found.append((float(value[0]),float(value[1])))
+  elif isinstance(value,(list,tuple)):
+   for child in value: walk(child)
+ walk(coords)
+ return found
+def _distance_km(lat1,lon1,lat2,lon2):
+ p1,p2=math.radians(lat1),math.radians(lat2)
+ dp=math.radians(lat2-lat1);dl=math.radians(lon2-lon1)
+ a=math.sin(dp/2)**2+math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+ return 6371*2*math.asin(min(1,math.sqrt(a)))
+@app.get("/api/roads")
+async def roads(lat:float=64.1466,lon:float=-21.9426):
+ """Nearby road conditions and incidents from the Icelandic Road and Coastal Administration open WFS."""
+ if not (-90<=lat<=90 and -180<=lon<=180): return {"source":"Vegagerðin","items":[],"error":"Ógild staðsetning"}
+ cache_key=(round(lat,2),round(lon,2))
+ cached=ROAD_CACHE.get(cache_key)
+ if cached and time.time()-cached["at"]<300: return cached["data"]
+ lat_delta=0.38;lon_delta=min(1.2,0.48/max(0.25,math.cos(math.radians(lat))))
+ bbox=f"{lon-lon_delta},{lat-lat_delta},{lon+lon_delta},{lat+lat_delta},EPSG:4326"
+ common={"service":"WFS","version":"1.0.0","request":"GetFeature","srsName":"EPSG:4326","outputFormat":"application/json","bbox":bbox,"maxFeatures":2500}
+ line_params={**common,"typeName":"gis:faerdferlar2017_1"}
+ point_params={**common,"typeName":"gis:faerdpunktar2017_1"}
+ async with httpx.AsyncClient() as client:
+  line_result,point_result=await asyncio.gather(get_json(client,ROAD_WFS,line_params),get_json(client,ROAD_WFS,point_params),return_exceptions=True)
+ features=[]
+ for kind,result in (("road",line_result),("point",point_result)):
+  if isinstance(result,Exception): continue
+  rows=result.get("features",[]) if isinstance(result,dict) else []
+  for feature in rows:
+   props=feature.get("properties") or {}
+   coords=_road_coords(feature.get("geometry"))
+   if not coords: continue
+   distance=min(_distance_km(lat,lon,y,x) for x,y in coords)
+   if distance>48: continue
+   if kind=="road":
+    raw=_road_value(props,"AstandYfirbord") or "OTHEKKT"
+    extra=_road_value(props,"AstandVidbotaruppl")
+    title=_road_value(props,"FulltNafnButs","StuttNafnButs") or "Vegkafli"
+    description=_road_value(props,"AstandLysing") or ROAD_STATUS_IS.get(str(raw).upper(),str(raw))
+    work=_road_value(props,"FrkvLysing")
+    weight=_road_value(props,"AsthungiLysing")
+    recorded=_road_value(props,"DagsSkrad")
+    updated=_road_value(props,"DagsKeyrtUt")
+   else:
+    raw=_road_value(props,"Astand") or "ANNAD"
+    extra=None
+    title=_road_value(props,"Aths") or "Staðbundin tilkynning"
+    description=_road_value(props,"Lysing") or str(raw)
+    work=None;weight=None
+    recorded=_road_value(props,"DagsSkrad")
+    updated=_road_value(props,"DagsKeyrtUt")
+   code=str(raw).upper()
+   features.append({"kind":kind,"code":code,"status":ROAD_STATUS_IS.get(code,description or code),"description":description,"road":str(title),"extra":str(extra) if extra else None,"work":str(work) if work else None,"weight":str(weight) if weight else None,"distance_km":round(distance,1),"recorded_at":recorded,"updated_at":updated,"rank":ROAD_STATUS_RANK.get(code,5)})
+ features.sort(key=lambda x:(x["rank"],x["distance_km"]))
+ data={"generated_at":time.time(),"source":"Vegagerðin – opin gagnaveita (WFS)","count":len(features),"items":features[:35],"priority":features[0] if features else None,"radius_km":48,"attribution":"Gögn frá Vegagerðinni. Ástand getur breyst; staðfestu aðstæður áður en lagt er af stað.","links":{"map":"https://umferdin.is/","info":"https://www.vegagerdin.is/ferdaupplysingar"}}
+ ROAD_CACHE[cache_key]={"at":time.time(),"data":data}
+ return data
 
 @app.get("/api/pressure-lows")
 async def pressure_lows():
