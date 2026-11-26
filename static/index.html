@@ -175,11 +175,11 @@ const regionLabels={capital:'Höfuðborgarsvæðið',west:'Vesturland',north:'No
 
 function roadMapStatusCode(p){
  // Lita eingöngu eftir stöðukóðanum frá Vegagerðinni, aldrei frjálsum lýsingartexta.
- const code=String(p.code||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase().trim().replace(/[\\s-]+/g,'_');
+ const code=String(p.map_code||p.code||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toUpperCase().trim().replace(/[\\s-]+/g,'_');
  if(['ALLUR_AKSTUR_BANN','LOKAD','OFAERT_VEDUR','OFAERT_ANNAD'].includes(code))return 'closed';
  if(['GREIDFAERT'].includes(code))return 'clear';
  if(['FAERT_FJALLABILUM'].includes(code))return 'mountain';
- if(['FLUGHALT','HALKA','HALKUBLETTIR','THUNGFAERT','THAEFINGUR','SNJOTHEKJA','KRAP'].includes(code))return 'difficult';
+ if(['VEGAVINNA','VATNASKEMMDIR','STEINKAST','OSLETTUR_VEGUR','ANNAD_ATVIK','FLUGHALT','HALKA','HALKUBLETTIR','THUNGFAERT','THAEFINGUR','SNJOTHEKJA','KRAP'].includes(code))return 'difficult';
  return 'unknown';
 }
 function roadMapStyle(feature){
@@ -192,11 +192,14 @@ function roadMapStyle(feature){
  return {color,weight,opacity:.9,lineCap:'round',lineJoin:'round'};
 }
 function roadMapPopup(p){
- const code=roadMapStatusCode(p);
+ const code=roadMapStatusCode(p),linked=Array.isArray(p.linked_alerts)?p.linked_alerts:[];
  const wording=(String(p.status||'')+' '+String(p.description||'')).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('is');
  const explicitlyPassable=code==='clear'||/(^|[^a-z])(greidfaert|vegkafli\\s+faer|vegur\\s+faer|faert)([^a-z]|$)/.test(wording);
- const label=explicitlyPassable&&p.kind==='road'?'Vegkafli fær':(p.status||'Óþekkt');
- return '<b>'+esc(label)+'</b><br><strong>'+esc(p.road||'')+'</strong><br>'+esc(p.description||'')+
+ let label=explicitlyPassable&&p.kind==='road'?'Vegkafli fær':(p.status||'Óþekkt');
+ if(code==='closed'&&linked.length)label='Lokað – allur akstur bannaður';
+ else if(code==='difficult'&&linked.some(a=>a.code==='VEGAVINNA'))label='Vegavinna / aðvörun';
+ const linkedHtml=linked.map(a=>'<br><strong>Tilkynning Vegagerðarinnar:</strong> '+esc(a.description||a.status||'')+(a.valid_to?'<br><small>Gildir til: '+fmtDate(a.valid_to)+'</small>':'')).join('');
+ return '<b>'+esc(label)+'</b><br><strong>'+esc(p.road||'')+'</strong><br>'+esc(p.description||'')+linkedHtml+
  (p.extra?'<br>'+esc(p.extra):'')+(p.work?'<br>'+esc(p.work):'')+(p.weight?'<br>'+esc(p.weight):'')+
  (p.updated_at?'<br><small>Uppfært: '+fmtDate(p.updated_at)+'</small>':'');
 }
