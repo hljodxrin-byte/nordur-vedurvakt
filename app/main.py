@@ -455,7 +455,7 @@ async def road_map():
    props["map_code"]="ALLUR_AKSTUR_BANN"
   elif "VEGAVINNA" in codes or own_work=="VEGAVINNA":
    props["map_code"]="VEGAVINNA"
-  elif codes.intersection({"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR"}) or own_extra in {"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR"}:
+  elif codes.intersection({"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR"}) or own_extra in {"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR","OVEDUR","SANDBYLUR","SKAFRENNINGUR","SNJOKOMA","STORHRID","THOKA","ELJAGANGUR"}:
    props["map_code"]="ANNAD_ATVIK"
  if not features and errors:
   raise HTTPException(status_code=502,detail="Ekki tókst að sækja vegagögn frá Vegagerðinni")
