@@ -270,7 +270,7 @@ async def observations():
 
 ROAD_WFS="https://gagnaveita.vegagerdin.is/geoserver/gis/ows"
 ROAD_STATUS_RANK={"ALLUR_AKSTUR_BANN":0,"LOKAD":1,"OFAERT_VEDUR":2,"OFAERT_ANNAD":3,"FLUGHALT":4,"HALKA":5,"HALKUBLETTIR":6,"THUNGFAERT":7,"THAEFINGUR":8,"SNJOTHEKJA":9,"KRAP":10,"GREIDFAERT":11}
-ROAD_STATUS_IS={"ALLUR_AKSTUR_BANN":"Allur akstur bannaður","LOKAD":"Vegur lokaður","OFAERT_VEDUR":"Ófært vegna veðurs","OFAERT_ANNAD":"Ófært","FLUGHALT":"Flughált","HALKA":"Hálka","HALKUBLETTIR":"Hálkublettir","THUNGFAERT":"Þungfært","THAEFINGUR":"Þæfingsfærð","SNJOTHEKJA":"Snjóþekja","KRAP":"Krap","GREIDFAERT":"Greiðfært","FAERT_FJALLABILUM":"Fært fjallabílum","OTHEKKT":"Óþekkt"}
+ROAD_STATUS_IS={"ALLUR_AKSTUR_BANN":"Allur akstur bannaður","LOKAD":"Vegur lokaður","OFAERT_VEDUR":"Ófært vegna veðurs","OFAERT_ANNAD":"Ófært","FLUGHALT":"Flughált","HALKA":"Hálka","HALKUBLETTIR":"Hálkublettir","THUNGFAERT":"Þungfært","THAEFINGUR":"Þæfingsfærð","SNJOTHEKJA":"Snjóþekja","KRAP":"Krap","GREIDFAERT":"Greiðfært","FAERT_FJALLABILUM":"Fært fjallabílum","EKKI_I_THJONUSTU":"Ekki í þjónustu Vegagerðarinnar","OTHEKKT":"Óþekkt"}
 def _road_value(props,*names):
  for name in names:
   for key,value in props.items():
@@ -410,7 +410,7 @@ async def road_map():
     "kind":kind,"code":code,"id_butur":str(segment_id) if segment_id is not None else None,
     "valid_to":valid_to,"status":ROAD_STATUS_IS.get(code,description or code),
     "road":str(title),"description":str(description or ""),
-    "extra":str(extra) if extra else None,"work":str(work) if work else None,
+    "extra":str(extra) if extra else None,"extra_code":str(extra_code or "").upper(),"work":str(work) if work else None,
     "work_code":str(work_code or "").upper(),
     "traffic_incident":bool(kind=="point" and traffic_incident),
     "roadwork":bool(
