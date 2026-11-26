@@ -274,6 +274,21 @@ def _distance_km(lat1,lon1,lat2,lon2):
  dp=math.radians(lat2-lat1);dl=math.radians(lon2-lon1)
  a=math.sin(dp/2)**2+math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
  return 6371*2*math.asin(min(1,math.sqrt(a)))
+def _point_line_distance_km(point_geometry,line_geometry):
+ """Nálægð punktatilkynningar við næsta veglínubút, í km."""
+ points=_road_coords(point_geometry);line=_road_coords(line_geometry)
+ if not points or len(line)<2: return float("inf")
+ lat0=sum(y for _,y in points)/len(points)
+ sx=111.32*math.cos(math.radians(lat0));sy=110.57
+ best=float("inf")
+ for px,py in points:
+  qx,qy=px*sx,py*sy
+  for (ax,ay),(bx,by) in zip(line,line[1:]):
+   ax*=sx;bx*=sx;ay*=sy;by*=sy
+   dx,dy=bx-ax,by-ay;den=dx*dx+dy*dy
+   t=0 if den==0 else max(0,min(1,((qx-ax)*dx+(qy-ay)*dy)/den))
+   best=min(best,math.hypot(qx-(ax+t*dx),qy-(ay+t*dy)))
+ return best
 @app.get("/api/roads")
 async def roads(lat:float=64.1466,lon:float=-21.9426):
  """Nearby road conditions and incidents from the Icelandic Road and Coastal Administration open WFS."""
@@ -316,7 +331,8 @@ async def roads(lat:float=64.1466,lon:float=-21.9426):
     recorded=_road_value(props,"DagsSkrad")
     updated=_road_value(props,"DagsKeyrtUt")
    code=str(raw).upper()
-   features.append({"kind":kind,"code":code,"status":ROAD_STATUS_IS.get(code,description or code),"description":description,"road":str(title),"extra":str(extra) if extra else None,"work":str(work) if work else None,"weight":str(weight) if weight else None,"distance_km":round(distance,1),"recorded_at":recorded,"updated_at":updated,"rank":ROAD_STATUS_RANK.get(code,5)})
+   features.append({"kind":kind,"code":code,"status":ROAD_STATUS_IS.get(code,description or code),"description":description,"road":str(title),"extra":str(extra) if extra else None,"extra_code":str(extra_code or "").upper(),
+    "work_code":str(work_code or "").upper(),"work":str(work) if work else None,"weight":str(weight) if weight else None,"distance_km":round(distance,1),"recorded_at":recorded,"updated_at":updated,"rank":ROAD_STATUS_RANK.get(code,5)})
  features.sort(key=lambda x:(x["rank"],x["distance_km"]))
  data={"generated_at":time.time(),"source":"Vegagerðin – opin gagnaveita (WFS)","count":len(features),"items":features[:35],"priority":features[0] if features else None,"radius_km":48,"attribution":"Gögn frá Vegagerðinni. Ástand getur breyst; staðfestu aðstæður áður en lagt er af stað.","links":{"map":"https://umferdin.is/","info":"https://www.vegagerdin.is/ferdaupplysingar"}}
  ROAD_CACHE[cache_key]={"at":time.time(),"data":data}
@@ -346,12 +362,14 @@ async def road_map():
     title=_road_value(props,"FulltNafnButs","StuttNafnButs") or "Vegkafli"
     description=_road_value(props,"AstandLysing") or ROAD_STATUS_IS.get(str(raw).upper(),str(raw))
     extra=_road_value(props,"AstandVidbotaruppl")
+    extra_code=_road_value(props,"AstandVidbotaruppl")
+    work_code=_road_value(props,"FrkvAudkenni")
     work=_road_value(props,"FrkvLysing");weight=_road_value(props,"AsthungiLysing")
    else:
     raw=_road_value(props,"Astand") or "ANNAD"
     title=_road_value(props,"Aths") or "Tilkynning frá Vegagerðinni"
     description=_road_value(props,"Lysing") or str(raw)
-    extra=None;work=None;weight=None
+    extra=None;extra_code=None;work_code=None;work=None;weight=None
    recorded=_road_value(props,"DagsSkrad");updated=_road_value(props,"DagsKeyrtUt")
    valid_to=_road_value(props,"GildirTil")
    # Sleppa punkttilkynningum sem eru útrunnar; þær eiga ekki að lita veginn lengur.
@@ -372,26 +390,35 @@ async def road_map():
     "extra":str(extra) if extra else None,"work":str(work) if work else None,
     "weight":str(weight) if weight else None,"recorded_at":recorded,"updated_at":updated,
     "rank":ROAD_STATUS_RANK.get(code,5)}})
- # Punktatilkynningar eru merktar með IdButur sem vísar á nákvæma vegbútaeiningu.
- # Tengjum þær við veglínuna áður en GeoJSON er sent í kortið.
+ # IdButur á punktum getur vísað á leiðarnúmer en ekki alltaf sama auðkenni
+ # og á einstökum línubútum. Reynum fyrst auðkennið og notum síðan raunverulega
+ # fjarlægð punkts frá veglínu (aðeins innan 250 m) sem varatengingu.
+ roads=[item for item in features if item["properties"].get("kind")=="road"]
+ points=[item for item in features if item["properties"].get("kind")=="point"]
  alerts_by_segment={}
- for item in features:
+ for point in points:
+  pp=point["properties"]
+  matches=[road for road in roads if pp.get("id_butur") and
+           road["properties"].get("id_butur")==pp.get("id_butur")]
+  if not matches:
+   nearest=min(roads,key=lambda road:_point_line_distance_km(point.get("geometry"),road.get("geometry")),default=None)
+   if nearest and _point_line_distance_km(point.get("geometry"),nearest.get("geometry"))<=0.25:
+    matches=[nearest]
+  for road in matches:
+   alerts_by_segment.setdefault(id(road),[]).append(pp)
+ for item in roads:
   props=item["properties"]
-  if props.get("kind")=="point" and props.get("id_butur"):
-   alerts_by_segment.setdefault(props["id_butur"],[]).append(props)
- for item in features:
-  props=item["properties"]
-  if props.get("kind")!="road" or not props.get("id_butur"): continue
-  linked=alerts_by_segment.get(props["id_butur"],[])
-  if not linked: continue
-  props["linked_alerts"]=[{"code":a.get("code"),"status":a.get("status"),"description":a.get("description"),"road":a.get("road"),"valid_to":a.get("valid_to"),"recorded_at":a.get("recorded_at")} for a in linked]
-  # Lokun hefur alltaf forgang yfir færðarkóða vegkaflans.
+  linked=alerts_by_segment.get(id(item),[])
   codes={str(a.get("code") or "").upper() for a in linked}
-  if "ALLUR_AKSTUR_BANN" in codes:
+  own_extra=props.get("extra_code","")
+  own_work=props.get("work_code","")
+  if linked:
+   props["linked_alerts"]=[{"code":a.get("code"),"status":a.get("status"),"description":a.get("description"),"road":a.get("road"),"valid_to":a.get("valid_to"),"recorded_at":a.get("recorded_at")} for a in linked]
+  if "ALLUR_AKSTUR_BANN" in codes or "ALLUR_AKSTUR_BANN" in own_extra:
    props["map_code"]="ALLUR_AKSTUR_BANN"
-  elif "VEGAVINNA" in codes:
+  elif "VEGAVINNA" in codes or own_work=="VEGAVINNA":
    props["map_code"]="VEGAVINNA"
-  elif codes.intersection({"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR"}):
+  elif codes.intersection({"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR"}) or own_extra in {"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR"}:
    props["map_code"]="ANNAD_ATVIK"
  if not features and errors:
   raise HTTPException(status_code=502,detail="Ekki tókst að sækja vegagögn frá Vegagerðinni")
