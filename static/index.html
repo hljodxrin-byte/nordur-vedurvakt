@@ -118,7 +118,7 @@ body.road-open .road-backdrop{opacity:1;pointer-events:auto}body.road-open .road
 .info-carousel-heading p{margin:4px 0 0;font-size:13px}
 .info-carousel-controls{display:flex;gap:8px;flex:0 0 auto}
 .info-carousel-controls button{width:42px;height:40px;padding:0;font-size:22px;border-radius:10px}
-.info-carousel{display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;padding:3px 2px 16px;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:thin;scrollbar-color:#52769a #102641;-webkit-overflow-scrolling:touch;cursor:grab;user-select:none}
+.info-carousel{display:flex;gap:14px;overflow-x:auto;overflow-y:hidden;padding:3px 2px 16px;scroll-snap-type:x mandatory;scroll-behavior:smooth;overscroll-behavior-x:contain;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;cursor:grab;user-select:none}.info-carousel::-webkit-scrollbar{display:none;width:0;height:0}
 .info-carousel.dragging{cursor:grabbing;scroll-snap-type:none;scroll-behavior:auto}
 .info-carousel>.card{flex:0 0 min(78%,720px);width:min(78%,720px);min-width:min(78%,720px);scroll-snap-align:center;align-self:stretch;cursor:pointer;transition:border-color .16s,box-shadow .16s}
 .info-carousel>.card.active-panel{border-color:#a9d3ff;box-shadow:0 0 0 2px #a9d3ff44,0 12px 32px #020b1855}
