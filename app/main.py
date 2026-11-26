@@ -2,11 +2,19 @@ import asyncio, os, time, math
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import httpx
 
 app = FastAPI(title="Norður – Veðurvakt Íslands")
+app.add_middleware(
+ CORSMiddleware,
+ allow_origins=["capacitor://localhost","https://localhost","http://localhost","ionic://localhost"],
+ allow_credentials=False,
+ allow_methods=["GET","OPTIONS"],
+ allow_headers=["*"],
+)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 PLACES = [
  {"name":"Reykjavík","lat":64.1466,"lon":-21.9426},
