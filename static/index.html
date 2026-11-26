@@ -214,7 +214,7 @@ function roadMapPopup(p){
  if(code==='closed'&&linked.length)label='Lokað – allur akstur bannaður';
  else if(code==='difficult'&&linked.some(a=>a.code==='VEGAVINNA'))label='Vegavinna / aðvörun';
  const linkedHtml=linked.map(a=>'<br><strong>Tilkynning Vegagerðarinnar:</strong> '+esc(a.description||a.status||'')+(a.valid_to?'<br><small>Gildir til: '+fmtDate(a.valid_to)+'</small>':'')).join('');
- return '<b>'+esc(label)+'</b><br><strong>'+esc(p.road||'')+'</strong><br>'+esc(p.description||'')+linkedHtml+
+ return '<b>'+esc(label)+'</b><br><strong>'+esc(p.road||'')+'</strong><br>'+esc(p.description||'')+(code==='unknown'?'<br><small>Stöðukóði frá Vegagerðinni: '+esc(p.code||'vantar')+'</small>':'')+linkedHtml+
  (p.extra?'<br>'+esc(p.extra):'')+(p.work?'<br>'+esc(p.work):'')+(p.weight?'<br>'+esc(p.weight):'')+
  (p.updated_at?'<br><small>Uppfært: '+fmtDate(p.updated_at)+'</small>':'');
 }
