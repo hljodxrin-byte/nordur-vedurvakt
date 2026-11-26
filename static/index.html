@@ -367,8 +367,11 @@ function renderForecast(data){
   document.getElementById('rows').innerHTML='<tr><td colspan="7" class="error">Engin 9 daga spá fannst fyrir '+esc(selectedLabel)+'. Önnur svæði eru ekki sýnd í staðinn.</td></tr>';
   document.getElementById('places').innerHTML='<div class="place">Engin veðurgögn tiltæk fyrir '+esc(selectedLabel)+'.</div>';
   document.getElementById('modelcards').innerHTML='<div class="model">Líkansamanburður ekki tiltækur fyrir valið svæði.</div>';
+  // Veðurpunktar á kortinu eru óháðir staðarvali í upplýsingaspjaldinu.
   markers.forEach(m=>map.removeLayer(m));markers=[];
-  map.setView([64.8,-19],4);map.invalidateSize();
+  available.forEach(x=>{const q=x.data.current,m=L.circleMarker([x.lat,x.lon],{radius:7,color:'#69d5df',weight:2,fillColor:'#69d5df',fillOpacity:.9}).addTo(map).bindPopup('<b>'+esc(x.name)+'</b><br>'+n(q.temperature_2m)+'°C · '+esc(weather(q.weather_code))+'<br>Vindur '+n(q.wind_speed_10m)+' m/s<br><small>Smelltu á punktinn til að velja '+esc(x.name)+'</small>').on('click',()=>{if(selectedLocation!==x.name)changeLocation(x.name);});markers.push(m)});
+  if(available.length>1)map.fitBounds(available.map(x=>[x.lat,x.lon]),{padding:[25,25],maxZoom:6});else if(available.length===1)map.setView([available[0].lat,available[0].lon],6);else map.setView([64.8,-19],4);
+  map.invalidateSize();
   return;
  }
  const c=primary.data.current,day=primary.data.daily;
@@ -384,9 +387,10 @@ function renderForecast(data){
  document.getElementById('pressure').textContent=n(c.pressure_msl,0)+' hPa';
  document.getElementById('places').innerHTML=shown.map(x=>'<div class="place"><b>'+esc(x.name)+'</b><br><span class="place-icon" aria-hidden="true">'+weatherIcon(x.data.current.weather_code,x.data.current.is_day!==0)+'</span><strong>'+n(x.data.current.temperature_2m,0)+'°</strong><br>'+weather(x.data.current.weather_code)+' · Vindur '+n(x.data.current.wind_speed_10m)+' m/s</div>').join('');
  document.getElementById('modelcards').innerHTML=primary.name==='Reykjavík'?data.models.map(x=>'<div class="model"><b>'+esc(x.name)+'</b><p>'+(x.current?n(x.current.temperature_2m)+'°C · Vindur '+n(x.current.wind_speed_10m)+' m/s · '+n(x.current.pressure_msl,0)+' hPa':esc(x.error||'Ekki tiltækt'))+'</p></div>').join(''):'<div class="model">Líkansamanburður er aðeins tiltækur fyrir Reykjavík.</div>';
+ // Sýna alla veðurstaði á kortinu, óháð því hvaða staður eða landshluti er valinn.
  markers.forEach(m=>map.removeLayer(m));markers=[];
- shown.forEach(x=>{let q=x.data.current,m=L.circleMarker([x.lat,x.lon],{radius:selectedLocation===x.name?10:7,color:selectedLocation===x.name?'#ffffff':'#69d5df',weight:selectedLocation===x.name?3:2,fillColor:'#69d5df',fillOpacity:.9}).addTo(map).bindPopup('<b>'+esc(x.name)+'</b><br>'+n(q.temperature_2m)+'°C · '+esc(weather(q.weather_code))+'<br>Vindur '+n(q.wind_speed_10m)+' m/s<br><small>Smelltu á punktinn til að velja '+esc(x.name)+'</small>').on('click',()=>{if(selectedLocation!==x.name)changeLocation(x.name);});markers.push(m)});
- if(shown.length>1)map.fitBounds(shown.map(x=>[x.lat,x.lon]),{padding:[25,25],maxZoom:6});else map.setView([primary.lat,primary.lon],6);
+ available.forEach(x=>{let q=x.data.current,isSelected=selectedLocation===x.name,m=L.circleMarker([x.lat,x.lon],{radius:isSelected?10:7,color:isSelected?'#ffffff':'#69d5df',weight:isSelected?3:2,fillColor:'#69d5df',fillOpacity:.9}).addTo(map).bindPopup('<b>'+esc(x.name)+'</b><br>'+n(q.temperature_2m)+'°C · '+esc(weather(q.weather_code))+'<br>Vindur '+n(q.wind_speed_10m)+' m/s<br><small>Smelltu á punktinn til að velja '+esc(x.name)+'</small>').on('click',()=>{if(selectedLocation!==x.name)changeLocation(x.name);});markers.push(m)});
+ if(available.length>1)map.fitBounds(available.map(x=>[x.lat,x.lon]),{padding:[25,25],maxZoom:6});else map.setView([primary.lat,primary.lon],6);
  const gusts=(day.wind_gusts_10m_max||[]).filter(Number.isFinite),rain=(day.precipitation_sum||[]).filter(Number.isFinite),pressures=(day.pressure_msl_mean||[]).filter(Number.isFinite);
  const maxg=gusts.length?Math.max(...gusts):0,maxr=rain.length?Math.max(...rain):0,drop=pressures.length?pressures[0]-Math.min(...pressures):0,risks=[];
  if(maxg>=18)risks.push('Vindhviður geta náð '+n(maxg)+' m/s.');
