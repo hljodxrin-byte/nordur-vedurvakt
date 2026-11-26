@@ -384,6 +384,9 @@ async def road_map():
    stamp=updated or recorded
    if stamp and (latest is None or str(stamp)>str(latest)): latest=stamp
    code=str(raw).upper()
+   incident_text=" ".join(str(v or "") for v in (code,title,description)).casefold()
+   incident_key=incident_text.translate(str.maketrans({"á":"a","é":"e","í":"i","ó":"o","ú":"u","ý":"y","ð":"d","þ":"th"}))
+   traffic_incident=any(term in incident_key for term in ("slys","arekst","umferdarohapp","umferdarslys"))
    segment_id=_road_value(props,"IdButur")
    features.append({"type":"Feature","geometry":geometry,"properties":{
     "kind":kind,"code":code,"id_butur":str(segment_id) if segment_id is not None else None,
@@ -391,6 +394,7 @@ async def road_map():
     "road":str(title),"description":str(description or ""),
     "extra":str(extra) if extra else None,"work":str(work) if work else None,
     "work_code":str(work_code or "").upper(),
+    "traffic_incident":bool(kind=="point" and traffic_incident),
     "roadwork":bool(
      (kind=="point" and (
       code=="VEGAVINNA" or
@@ -424,10 +428,11 @@ async def road_map():
   linked=alerts_by_segment.get(id(item),[])
   codes={str(a.get("code") or "").upper() for a in linked}
   props["roadwork"]=bool(props.get("roadwork") or "VEGAVINNA" in codes or props.get("work_code")=="VEGAVINNA")
+  props["traffic_incident"]=bool(props.get("traffic_incident") or any(a.get("traffic_incident") for a in linked))
   own_extra=props.get("extra_code","")
   own_work=props.get("work_code","")
   if linked:
-   props["linked_alerts"]=[{"code":a.get("code"),"status":a.get("status"),"description":a.get("description"),"road":a.get("road"),"valid_to":a.get("valid_to"),"recorded_at":a.get("recorded_at")} for a in linked]
+   props["linked_alerts"]=[{"code":a.get("code"),"status":a.get("status"),"description":a.get("description"),"road":a.get("road"),"valid_to":a.get("valid_to"),"recorded_at":a.get("recorded_at"),"traffic_incident":a.get("traffic_incident")} for a in linked]
   if "ALLUR_AKSTUR_BANN" in codes or "ALLUR_AKSTUR_BANN" in own_extra:
    props["map_code"]="ALLUR_AKSTUR_BANN"
   elif "VEGAVINNA" in codes or own_work=="VEGAVINNA":
