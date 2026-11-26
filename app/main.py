@@ -322,6 +322,55 @@ async def roads(lat:float=64.1466,lon:float=-21.9426):
  ROAD_CACHE[cache_key]={"at":time.time(),"data":data}
  return data
 
+
+ROAD_MAP_CACHE={"at":0,"data":None}
+@app.get("/api/road-map")
+async def road_map():
+ """Latest nationwide road condition lines and point reports from Vegagerðin WFS."""
+ cached=ROAD_MAP_CACHE["data"]
+ if cached is not None and time.time()-ROAD_MAP_CACHE["at"]<300: return cached
+ bbox="-25.0,63.0,-12.0,67.6,EPSG:4326"
+ common={"service":"WFS","version":"1.0.0","request":"GetFeature","srsName":"EPSG:4326","outputFormat":"application/json","bbox":bbox,"maxFeatures":12000}
+ params=[{**common,"typeName":"gis:faerdferlar2017_1"},{**common,"typeName":"gis:faerdpunktar2017_1"}]
+ async with httpx.AsyncClient() as client:
+  results=await asyncio.gather(*(get_json(client,ROAD_WFS,p) for p in params),return_exceptions=True)
+ features=[];latest=None;errors=[]
+ for kind,result in zip(("road","point"),results):
+  if isinstance(result,Exception):
+   errors.append(str(result));continue
+  for feature in result.get("features",[]) if isinstance(result,dict) else []:
+   props=feature.get("properties") or {};geometry=feature.get("geometry")
+   if not geometry or not _road_coords(geometry): continue
+   if kind=="road":
+    raw=_road_value(props,"AstandYfirbord") or "OTHEKKT"
+    title=_road_value(props,"FulltNafnButs","StuttNafnButs") or "Vegkafli"
+    description=_road_value(props,"AstandLysing") or ROAD_STATUS_IS.get(str(raw).upper(),str(raw))
+    extra=_road_value(props,"AstandVidbotaruppl")
+    work=_road_value(props,"FrkvLysing");weight=_road_value(props,"AsthungiLysing")
+   else:
+    raw=_road_value(props,"Astand") or "ANNAD"
+    title=_road_value(props,"Aths") or "Tilkynning frá Vegagerðinni"
+    description=_road_value(props,"Lysing") or str(raw)
+    extra=None;work=None;weight=None
+   recorded=_road_value(props,"DagsSkrad");updated=_road_value(props,"DagsKeyrtUt")
+   stamp=updated or recorded
+   if stamp and (latest is None or str(stamp)>str(latest)): latest=stamp
+   code=str(raw).upper()
+   features.append({"type":"Feature","geometry":geometry,"properties":{
+    "kind":kind,"code":code,"status":ROAD_STATUS_IS.get(code,description or code),
+    "road":str(title),"description":str(description or ""),
+    "extra":str(extra) if extra else None,"work":str(work) if work else None,
+    "weight":str(weight) if weight else None,"recorded_at":recorded,"updated_at":updated,
+    "rank":ROAD_STATUS_RANK.get(code,5)}})
+ if not features and errors:
+  raise HTTPException(status_code=502,detail="Ekki tókst að sækja vegagögn frá Vegagerðinni")
+ data={"generated_at":time.time(),"source":"Vegagerðin – opin gagnaveita (WFS)",
+  "updated_at":latest,"count":len(features),"features":features,
+  "attribution":"Vegagerðin – opin gagnaveita. Skoðaðu umferdin.is fyrir nýjustu staðfestu upplýsingar.",
+  "links":{"map":"https://umferdin.is/","info":"https://www.vegagerdin.is/ferdaupplysingar"}}
+ ROAD_MAP_CACHE.update(at=time.time(),data=data)
+ return data
+
 @app.get("/api/pressure-lows")
 async def pressure_lows():
  """Detect local sea-level pressure minima on a North Atlantic forecast grid."""
