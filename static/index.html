@@ -165,6 +165,19 @@ body.road-open .road-backdrop{opacity:1;pointer-events:auto}body.road-open .road
 .info-carousel-wrap:before,.info-carousel-wrap:after{content:none!important;display:none!important}
 .info-carousel{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 54px,#000 calc(100% - 54px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 54px,#000 calc(100% - 54px),transparent 100%)}
 @media(max-width:800px){.info-carousel{-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 34px,#000 calc(100% - 34px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 34px,#000 calc(100% - 34px),transparent 100%)}}
+
+/* Einn upplýsingagluggi í einu; nýr gluggi skoppar mjúklega inn eftir flettingu */
+.info-carousel{padding:3px 2px 16px;scroll-padding-inline:2px}
+.info-carousel>.card{flex:0 0 100%;width:100%;min-width:100%;scroll-snap-align:center;scroll-snap-stop:always}
+.info-carousel>.card.bounce-in{animation:infoPanelBounce .48s cubic-bezier(.22,.85,.32,1.18) both}
+@keyframes infoPanelBounce{
+ 0%{opacity:.72;transform:translateY(13px) scale(.985)}
+ 62%{opacity:1;transform:translateY(-4px) scale(1.006)}
+ 82%{transform:translateY(2px) scale(.998)}
+ 100%{opacity:1;transform:translateY(0) scale(1)}
+}
+@media(max-width:800px){.info-carousel{padding-left:2px;padding-right:2px}.info-carousel>.card{flex-basis:100%;width:100%;min-width:100%}}
+@media(prefers-reduced-motion:reduce){.info-carousel>.card.bounce-in{animation:none}}
 </style></head><body><header><b>HELVÍTIS VEÐRIÐ</b><button class="road-menu-button" type="button" onclick="toggleRoadSidebar(true)" aria-expanded="false" aria-controls="road-sidebar">🚗 Vegir og færð</button><span id="status">Sæki veðurgögn…</span></header><div class="road-backdrop" onclick="toggleRoadSidebar(false)" aria-hidden="true"></div><aside id="road-sidebar" class="road-sidebar" aria-label="Upplýsingar um vegi og færð" aria-hidden="true"><div class="road-sidebar-head"><div><div class="muted">VEGAGERÐIN · STAÐBUNDNAR UPPLÝSINGAR</div><h2>Vegir og færð</h2></div><button class="road-close" type="button" onclick="toggleRoadSidebar(false)" aria-label="Loka">×</button></div><p id="road-location" class="muted">Finna svæðið þitt…</p><div id="road-sidebar-content">Sæki upplýsingar um færð…</div><div class="road-tools"><a href="https://umferdin.is/" target="_blank" rel="noopener">Opna umferdin.is ↗</a><a href="https://www.vegagerdin.is/ferdaupplysingar" target="_blank" rel="noopener">Ferðaupplýsingar ↗</a></div><p class="muted">Gögn frá Vegagerðinni. Færð getur breyst hratt; athugaðu alltaf nýjustu upplýsingar áður en lagt er af stað.</p></aside><main><div class="intro"><div><div class="muted">ÍSLAND · NORÐUR-ATLANTSHAF</div><h1 aria-label="Helvítis Veðrið"><span class="title-letter red">H</span><span class="title-letter white">e</span><span class="title-letter blue">l</span><span class="title-letter red">v</span><span class="title-letter white">í</span><span class="title-letter blue">t</span><span class="title-letter red">i</span><span class="title-letter white">s</span> <span class="title-letter blue">V</span><span class="title-letter red">e</span><span class="title-letter white">ð</span><span class="title-letter blue">r</span><span class="title-letter red">i</span><span class="title-letter white">ð</span></h1><p class="muted">10 daga veðurspá, rauntímamælingar, lægðagreining og opinberar viðvaranir.</p></div><button onclick="load()">Uppfæra gögn</button></div><div class="dashboard-layout"><aside class="location-sidebar" aria-label="Val á veðurstað"><section class="location-picker">
 <div class="location-heading"><div><label>Skoða veður á</label><span class="location-hint">Veldu landshluta eða bæ</span></div></div>
 <div class="location-featured"><button type="button" class="region-tile all-tile active" data-location="all" aria-pressed="true" onclick="changeLocation('all')"><span class="all-icon">🇮🇸</span><span class="region-tile-name">Allt landið</span><span class="region-tile-count">Yfirlit yfir Ísland</span></button><div class="region-grid"><button type="button" class="region-tile" data-location="region:capital" aria-pressed="false" onclick="changeLocation('region:capital')"><span class="region-tile-name">Höfuðborgarsvæðið</span><span class="region-tile-count">4 staðir</span></button><button type="button" class="region-tile" data-location="region:west" aria-pressed="false" onclick="changeLocation('region:west')"><span class="region-tile-name">Vesturland</span><span class="region-tile-count">3 staðir</span></button><button type="button" class="region-tile" data-location="region:westfjords" aria-pressed="false" onclick="changeLocation('region:westfjords')"><span class="region-tile-name">Vestfirðir</span><span class="region-tile-count">3 staðir</span></button><button type="button" class="region-tile" data-location="region:north" aria-pressed="false" onclick="changeLocation('region:north')"><span class="region-tile-name">Norðurland</span><span class="region-tile-count">4 staðir</span></button><button type="button" class="region-tile" data-location="region:east" aria-pressed="false" onclick="changeLocation('region:east')"><span class="region-tile-name">Austurland</span><span class="region-tile-count">3 staðir</span></button><button type="button" class="region-tile" data-location="region:south" aria-pressed="false" onclick="changeLocation('region:south')"><span class="region-tile-name">Suðurland</span><span class="region-tile-count">6 staðir</span></button></div></div>
@@ -451,7 +464,30 @@ function moveInfoCarousel(direction){
 }
 (function setupInfoCarousel(){
  const rail=document.getElementById('info-carousel');if(!rail)return;
- let down=false,startX=0,startScroll=0,moved=false;
+ let down=false,startX=0,startScroll=0,moved=false,settleTimer=null;
+ const cards=()=>[...rail.querySelectorAll('.card')];
+ const nearestCard=()=>{
+  const center=rail.getBoundingClientRect().left+rail.clientWidth/2;
+  return cards().reduce((best,card)=>{
+   const r=card.getBoundingClientRect(),d=Math.abs(r.left+r.width/2-center);
+   return !best||d<best.distance?{card,distance:d}:best;
+  },null)?.card||null;
+ };
+ let settledCard=nearestCard();
+ const settle=()=>{
+  const card=nearestCard();if(!card)return;
+  cards().forEach(x=>x.classList.toggle('active-panel',x===card));
+  if(card!==settledCard){
+   card.classList.remove('bounce-in');
+   void card.offsetWidth;
+   card.classList.add('bounce-in');
+   settledCard=card;
+  }
+ };
+ const scheduleSettle=()=>{
+  clearTimeout(settleTimer);
+  settleTimer=setTimeout(settle,180);
+ };
  rail.addEventListener('pointerdown',e=>{
   /* Snertiskjáir nota innbyggða lárétta flettingu; mús getur dregið röðina. */
   if(e.pointerType!=='mouse'||e.button!==0)return;
@@ -464,21 +500,18 @@ function moveInfoCarousel(direction){
   const dx=e.clientX-startX;if(Math.abs(dx)>5)moved=true;
   if(moved)rail.scrollLeft=startScroll-dx;
  });
- window.addEventListener('pointerup',()=>{down=false;rail.classList.remove('dragging');});
+ window.addEventListener('pointerup',()=>{
+  if(!down)return;
+  down=false;rail.classList.remove('dragging');scheduleSettle();
+ });
  rail.addEventListener('click',e=>{
   if(moved){e.preventDefault();e.stopPropagation();moved=false;return;}
   if(e.target.closest('button,a,input,select,summary'))return;
   const card=e.target.closest('.card');if(!card)return;
-  rail.querySelectorAll('.card').forEach(x=>x.classList.toggle('active-panel',x===card));
   card.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
  });
- rail.addEventListener('scroll',()=>{
-  const cards=[...rail.querySelectorAll('.card')];if(!cards.length)return;
-  const center=rail.getBoundingClientRect().left+rail.clientWidth/2;
-  let nearest=cards[0],distance=Infinity;
-  cards.forEach(card=>{const r=card.getBoundingClientRect(),d=Math.abs(r.left+r.width/2-center);if(d<distance){distance=d;nearest=card;}});
-  cards.forEach(card=>card.classList.toggle('active-panel',card===nearest));
- },{passive:true});
+ rail.addEventListener('scroll',scheduleSettle,{passive:true});
+ if('onscrollend' in rail)rail.addEventListener('scrollend',settle,{passive:true});
 })();
 load();loadRoadMap();requestAlertLocation();setInterval(loadRoadMap,5*60*1000);;requestRoadLocation();setInterval(load,900000);setInterval(()=>{if(roadCoords)loadRoadInfo(roadCoords.lat,roadCoords.lon,roadLabel);},300000);
 </script></body></html>
