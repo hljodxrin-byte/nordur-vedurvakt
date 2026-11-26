@@ -1,0 +1,9 @@
+{
+  "appId": "is.helvitisvedrid.app",
+  "appName": "Helvítis Veðrið",
+  "webDir": "static",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": false
+  }
+}
