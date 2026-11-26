@@ -137,74 +137,6 @@ def convert_yr_forecast(place, payload):
   daily["pressure_msl_mean"].append(round(sum(d["pressures"])/len(d["pressures"]),1) if d["pressures"] else None)
  return {"current":current,"daily":daily,"source":"MET Norway Locationforecast 2.0","forecast_days":len(dates)}
 
-GOOGLE_WEATHER_API_KEY=os.getenv("GOOGLE_WEATHER_API_KEY","").strip()
-GOOGLE_WEATHER_URL="https://weather.googleapis.com/v1"
-
-def _google_wmo(condition):
- code=str((condition or {}).get("type") or "").upper()
- if code in {"CLEAR","SUNNY"}: return 0
- if code in {"MOSTLY_CLEAR","MOSTLY_SUNNY"}: return 1
- if code in {"PARTLY_CLOUDY","PARTLY_SUNNY"}: return 2
- if code in {"MOSTLY_CLOUDY","CLOUDY"}: return 3
- if "FOG" in code: return 45
- if "THUNDER" in code: return 95
- if "SLEET" in code or "FREEZING" in code: return 66
- if "SNOW" in code:
-  return 75 if "HEAVY" in code else 71 if "LIGHT" in code else 73
- if "RAIN" in code or "DRIZZLE" in code:
-  return 65 if "HEAVY" in code else 61 if "LIGHT" in code else 63
- return 3
-
-def _google_wind_ms(value):
- if not isinstance(value,dict) or value.get("value") is None: return None
- speed=float(value["value"]);unit=str(value.get("unit","KILOMETERS_PER_HOUR")).upper()
- if unit in {"KILOMETERS_PER_HOUR","KM_PER_HOUR"}: return round(speed/3.6,1)
- if unit in {"MILES_PER_HOUR","MPH"}: return round(speed*0.44704,1)
- return round(speed,1)
-
-async def fetch_google_weather(client,place):
- """Google Weather API fallback. The API key is only read from the server environment."""
- if not GOOGLE_WEATHER_API_KEY: raise RuntimeError("GOOGLE_WEATHER_API_KEY is not configured")
- location={"latitude":place["lat"],"longitude":place["lon"]}
- common={"key":GOOGLE_WEATHER_API_KEY,"location.latitude":location["latitude"],"location.longitude":location["longitude"],"languageCode":"is"}
- current_task=get_json(client,f"{GOOGLE_WEATHER_URL}/currentConditions:lookup",common,timeout=8)
- daily_task=get_json(client,f"{GOOGLE_WEATHER_URL}/forecast/days:lookup",{**common,"days":9,"pageSize":10},timeout=8)
- current_raw,daily_raw=await asyncio.gather(current_task,daily_task)
- condition=current_raw.get("weatherCondition",{})
- wind=current_raw.get("wind",{})
- precip=current_raw.get("precipitation",{}).get("qpf",{})
- pressure=current_raw.get("airPressure",{}).get("meanSeaLevelMillibars")
- current={"temperature_2m":(current_raw.get("temperature") or {}).get("degrees"),
-  "precipitation":precip.get("quantity",0),"weather_code":_google_wmo(condition),
-  "wind_speed_10m":_google_wind_ms(wind.get("speed")),"wind_direction_10m":(wind.get("direction") or {}).get("degrees"),
-  "wind_gusts_10m":_google_wind_ms(wind.get("gust")),"pressure_msl":pressure,"is_day":1 if current_raw.get("isDaytime",True) else 0}
- daily_rows=daily_raw.get("forecastDays",[])
- daily={"time":[],"weather_code":[],"temperature_2m_max":[],"temperature_2m_min":[],
-  "precipitation_sum":[],"wind_speed_10m_max":[],"wind_gusts_10m_max":[],"pressure_msl_mean":[]}
- for day in daily_rows:
-  date=day.get("displayDate",{})
-  if date:
-   day_key=f'{int(date.get("year")):04d}-{int(date.get("month")):02d}-{int(date.get("day")):02d}'
-  else:
-   start=(day.get("interval") or {}).get("startTime","")
-   day_key=datetime.fromisoformat(start.replace("Z","+00:00")).astimezone(ZoneInfo("Atlantic/Reykjavik")).date().isoformat()
-  daytime=day.get("daytimeForecast") or {};night=day.get("nighttimeForecast") or {}
-  day_wind=(daytime.get("wind") or {});night_wind=(night.get("wind") or {})
-  day_qpf=((daytime.get("precipitation") or {}).get("qpf") or {}).get("quantity",0) or 0
-  night_qpf=((night.get("precipitation") or {}).get("qpf") or {}).get("quantity",0) or 0
-  daily["time"].append(day_key)
-  daily["weather_code"].append(_google_wmo(daytime.get("weatherCondition") or night.get("weatherCondition")))
-  daily["temperature_2m_max"].append((day.get("maxTemperature") or {}).get("degrees"))
-  daily["temperature_2m_min"].append((day.get("minTemperature") or {}).get("degrees"))
-  daily["precipitation_sum"].append(round(float(day_qpf)+float(night_qpf),1))
-  speeds=[v for v in (_google_wind_ms(day_wind.get("speed")),_google_wind_ms(night_wind.get("speed"))) if v is not None]
-  gusts=[v for v in (_google_wind_ms(day_wind.get("gust")),_google_wind_ms(night_wind.get("gust"))) if v is not None]
-  daily["wind_speed_10m_max"].append(max(speeds) if speeds else None)
-  daily["wind_gusts_10m_max"].append(max(gusts) if gusts else None)
-  daily["pressure_msl_mean"].append(None)
- if not daily["time"]: raise ValueError("Google Weather API returned no daily forecast")
- return {"current":current,"daily":daily,"source":"Google Weather API","forecast_days":len(daily["time"])}
-
 def cache_ok(key):
  return CACHE[key]["data"] is not None and time.time()-CACHE[key]["at"]<TTL
 
@@ -218,53 +150,32 @@ async def health(): return {"ok":True,"service":"Nordur"}
 async def dashboard():
  if cache_ok("dashboard"): return CACHE["dashboard"]["data"]
  async with httpx.AsyncClient() as client:
-  results=await asyncio.gather(*(get_json(client,YR_URL,{"lat":round(p["lat"],2),"lon":round(p["lon"],2)},headers={"User-Agent":YR_USER_AGENT},timeout=12) for p in PLACES),return_exceptions=True)
-  # Google is only queried for towns where MET Norway did not return usable data.
-  google_indices=[i for i,result in enumerate(results) if isinstance(result,Exception) or not (isinstance(result,dict) and result.get("properties",{}).get("timeseries"))] if GOOGLE_WEATHER_API_KEY else []
-  google_results=await asyncio.gather(*(fetch_google_weather(client,PLACES[i]) for i in google_indices),return_exceptions=True) if google_indices else []
-  google_by_index=dict(zip(google_indices,google_results))
-  normalized_by_index={}
-  for i,(place,result) in enumerate(zip(PLACES,results)):
+  results=await asyncio.gather(*(get_json(client,YR_URL,{"lat":round(p["lat"],2),"lon":round(p["lon"],2)},headers={"User-Agent":YR_USER_AGENT}) for p in PLACES),return_exceptions=True)
+  gust_results=await asyncio.gather(*(fetch_gust_fallback(client,p) for p in PLACES),return_exceptions=True)
+  points=[]
+  for place,result,gust_result in zip(PLACES,results,gust_results):
    try:
     normalized=convert_yr_forecast(place,result) if not isinstance(result,Exception) else None
-    if normalized is None and i in google_by_index and not isinstance(google_by_index[i],Exception):
-     normalized=google_by_index[i]
-    normalized_by_index[i]=normalized
-   except Exception:
-    normalized_by_index[i]=None
-  # Open-Meteo is queried only for locations where gust values are actually missing.
-  gust_indices=[]
-  for i,normalized in normalized_by_index.items():
-   if normalized and (normalized["current"].get("wind_gusts_10m") is None or any(v is None for v in normalized["daily"].get("wind_gusts_10m_max",[]))):
-    gust_indices.append(i)
-  gust_results=await asyncio.gather(*(fetch_gust_fallback(client,PLACES[i]) for i in gust_indices),return_exceptions=True) if gust_indices else []
-  gust_by_index=dict(zip(gust_indices,gust_results))
-  points=[]
-  for i,place in enumerate(PLACES):
-   normalized=normalized_by_index.get(i)
-   original_error=results[i] if isinstance(results[i],Exception) else None
-   google_result=google_by_index.get(i)
-   if normalized and i in gust_by_index and not isinstance(gust_by_index[i],Exception):
-    gust_result=gust_by_index[i]
-    fallback_current=gust_result.get("current",{}).get("wind_gusts_10m")
-    if normalized["current"].get("wind_gusts_10m") is None and fallback_current is not None:
-     normalized["current"]["wind_gusts_10m"]=fallback_current
-    fallback_daily=gust_result.get("daily",{});fallback_by_date=dict(zip(fallback_daily.get("time",[]),fallback_daily.get("wind_gusts_10m_max",[])))
-    for index,forecast_date in enumerate(normalized["daily"]["time"]):
-     if normalized["daily"]["wind_gusts_10m_max"][index] is None:
-      normalized["daily"]["wind_gusts_10m_max"][index]=fallback_by_date.get(forecast_date)
-   if normalized:
-    normalized["gust_source"]="Open-Meteo fallback only where gust data is missing" if i in gust_by_index else normalized.get("source","MET Norway")
-   error_text=str(original_error) if original_error else (str(google_result) if isinstance(google_result,Exception) else None)
-   points.append({**place,"data":normalized,"error":error_text})
+    if normalized and not isinstance(gust_result,Exception):
+     fallback_current=gust_result.get("current",{}).get("wind_gusts_10m")
+     if normalized["current"].get("wind_gusts_10m") is None and fallback_current is not None:
+      normalized["current"]["wind_gusts_10m"]=fallback_current
+     fallback_daily=gust_result.get("daily",{})
+     fallback_dates=fallback_daily.get("time",[])
+     fallback_values=fallback_daily.get("wind_gusts_10m_max",[])
+     fallback_by_date=dict(zip(fallback_dates,fallback_values))
+     for index,forecast_date in enumerate(normalized["daily"]["time"]):
+      if normalized["daily"]["wind_gusts_10m_max"][index] is None:
+       normalized["daily"]["wind_gusts_10m_max"][index]=fallback_by_date.get(forecast_date)
+     normalized["gust_source"]="MET Norway, with Open-Meteo fallback where gust data is unavailable"
+    points.append({**place,"data":normalized,"error":str(result) if isinstance(result,Exception) else None})
+   except Exception as e:
+    points.append({**place,"data":None,"error":str(e)})
   model_names=["ECMWF IFS","GFS","ICON"]
   model_ids=["ecmwf_ifs025","gfs_seamless","icon_seamless"]
   models_raw=await asyncio.gather(*(fetch(client,PLACES[0],model) for model in model_ids),return_exceptions=True)
   models=[{"name":name,"current":result.get("current")} if not isinstance(result,Exception) else {"name":name,"error":str(result)} for name,result in zip(model_names,models_raw)]
- sources=sorted({p["data"].get("source","MET Norway Locationforecast 2.0") for p in points if p.get("data")})
- data={"generated_at":time.time(),"forecast_source":" + ".join(sources) if sources else "No forecast data","sources":sources,"points":points,"models":models}
- if any(source=="Google Weather API" for source in sources):
-  data["attribution"]="Source: Includes weather data from Google."
+ data={"generated_at":time.time(),"forecast_source":"MET Norway Locationforecast 2.0","points":points,"models":models}
  CACHE["dashboard"].update(at=time.time(),data=data)
  return data
 
