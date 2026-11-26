@@ -204,13 +204,15 @@ body.road-open .road-backdrop{opacity:1;pointer-events:auto}body.road-open .road
 .hourly-timeline.weather-storm:after{opacity:0;background:radial-gradient(ellipse at 72% 12%,rgba(232,250,255,.75),transparent 38%);animation:lightningSoft 11s ease-in-out infinite}
 .rain-particles{position:absolute!important;inset:0;z-index:0!important;overflow:hidden;pointer-events:none}
 .rain-drop{position:absolute;top:-18px;width:1px;height:var(--drop-length,10px);border-radius:2px;background:linear-gradient(to bottom,transparent,rgba(210,239,248,.56));opacity:var(--drop-opacity,.35);transform:translate3d(0,0,0) rotate(var(--drop-angle,7deg));animation:realRainFall var(--drop-duration,1.5s) linear var(--drop-delay,0s) infinite;will-change:transform}
+.snow-flake{position:absolute;top:-12px;width:var(--flake-size,3px);height:var(--flake-size,3px);border-radius:50%;background:rgba(248,253,255,.94);box-shadow:0 0 3px rgba(235,248,255,.48);opacity:var(--drop-opacity,.65);animation:realSnowFall var(--drop-duration,2s) linear var(--drop-delay,0s) infinite;will-change:transform}
 @keyframes realRainFall{from{transform:translate3d(0,-18px,0) rotate(var(--drop-angle,7deg))}to{transform:translate3d(var(--drop-drift,8px),125px,0) rotate(var(--drop-angle,7deg))}}
+@keyframes realSnowFall{0%{transform:translate3d(0,-12px,0) rotate(0)}25%{transform:translate3d(calc(var(--drop-drift,8px)*.22),22px,0) rotate(70deg)}60%{transform:translate3d(calc(var(--drop-drift,8px)*.68),76px,0) rotate(190deg)}100%{transform:translate3d(var(--drop-drift,8px),132px,0) rotate(300deg)}}
 @keyframes sunBreathe{from{transform:translate3d(-1%,0,0) scale(1);opacity:.34}to{transform:translate3d(1%,1%,0) scale(1.06);opacity:.5}}
 @keyframes cloudFloat{from{transform:translate3d(-2%,0,0)}to{transform:translate3d(2%,1%,0)}}
 @keyframes snowFallSoft{from{transform:translate3d(-1%,-3%,0)}to{transform:translate3d(2%,5%,0)}}
 @keyframes fogFloat{from{transform:translate3d(-2%,0,0) scale(1)}to{transform:translate3d(2%,1%,0) scale(1.04)}}
 @keyframes lightningSoft{0%,88%,91%,94%,100%{opacity:0}89%,90%{opacity:.34}92%{opacity:.12}}
-@media(prefers-reduced-motion:reduce){.hourly-timeline:before,.hourly-timeline:after,.rain-drop{animation:none!important}}
+@media(prefers-reduced-motion:reduce){.hourly-timeline:before,.hourly-timeline:after,.rain-drop,.snow-flake{animation:none!important}}
 /* Sól og skúrir: náttúruleg birtuskipti og gisnar skýjabreiður. */
 .hourly-timeline.weather-sunny{background:linear-gradient(180deg,#397ba3 0%,#286486 54%,#1d4b68 100%)!important}
 .hourly-timeline.weather-sunny:before{display:block!important;inset:-16% -20%!important;opacity:.72!important;background:radial-gradient(circle at 82% 18%,rgba(255,226,150,.92) 0 4%,rgba(255,220,132,.32) 9%,transparent 24%),radial-gradient(ellipse 34% 17% at 24% 28%,rgba(255,255,255,.42) 0 28%,transparent 72%),radial-gradient(ellipse 28% 13% at 48% 17%,rgba(255,255,255,.28) 0 30%,transparent 74%);animation:sunnySkyDrift 74s ease-in-out infinite alternate!important}
@@ -477,19 +479,23 @@ function updateHourlyTimelineValue(value){
  timeline.classList.add(weatherClass);
  const precipitation=Math.max(0,Number(row.precipitation)||0);
  let rainLayer=timeline.querySelector('.rain-particles');
- if(!rainLayer){rainLayer=document.createElement('div');rainLayer.className='rain-particles';rainLayer.setAttribute('aria-hidden','true');timeline.prepend(rainLayer);for(let i=0;i<100;i++){const drop=document.createElement('i');drop.className='rain-drop';const seed=(i*37+13)%101;drop.style.left=((seed*0.97)%100)+'%';drop.style.setProperty('--drop-length',(7+(i*11)%9)+'px');drop.style.setProperty('--drop-opacity',(0.18+((i*7)%10)*.035).toFixed(2));drop.style.setProperty('--drop-delay',(-((i*13)%35)/10)+'s');rainLayer.appendChild(drop)}}
+ if(!rainLayer){rainLayer=document.createElement('div');rainLayer.className='rain-particles';rainLayer.setAttribute('aria-hidden','true');timeline.prepend(rainLayer);for(let i=0;i<100;i++){const drop=document.createElement('i');const seed=(i*37+13)%101;drop.style.left=((seed*0.97)%100)+'%';drop.style.setProperty('--drop-opacity',(0.18+((i*7)%10)*.035).toFixed(2));drop.style.setProperty('--drop-delay',(-((i*13)%35)/10)+'s');rainLayer.appendChild(drop)}}
  const windSpeed=Math.max(0,Number(row.wind_speed_10m)||0);
- if(weatherClass==='weather-rain'||weatherClass==='weather-storm'){
+ const isSnow=weatherClass==='weather-snow';
+ if(weatherClass==='weather-rain'||weatherClass==='weather-storm'||isSnow){
   const intensity=Math.min(1,precipitation/5);
   const visibleDrops=Math.round(8+intensity*82);
   const fallDuration=Math.max(.48,1.9-windSpeed*.045);
   const windDrift=Math.min(34,windSpeed*1.35);
   rainLayer.style.display='block';
   [...rainLayer.children].forEach((drop,index)=>{
+   drop.className=isSnow?'snow-flake':'rain-drop';
    drop.style.display=index<visibleDrops?'block':'none';
-   drop.style.setProperty('--drop-duration',(fallDuration*(.78+((index*17)%45)/100)).toFixed(2)+'s');
+   drop.style.setProperty('--drop-duration',(fallDuration*(.78+((index*17)%45)/100)*(isSnow?1.12:1)).toFixed(2)+'s');
    drop.style.setProperty('--drop-drift',(windDrift*(.55+((index*19)%60)/100)).toFixed(1)+'px');
    drop.style.setProperty('--drop-angle',(3+windSpeed*.55)+'deg');
+   if(isSnow)drop.style.setProperty('--flake-size',(2+(index*7)%4)+'px');
+   else drop.style.setProperty('--drop-length',(7+(index*11)%9)+'px');
   });
  }else{rainLayer.style.display='none'}
  document.getElementById('hourly-slider').value=String(selectedHourIndex);
