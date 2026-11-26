@@ -220,7 +220,7 @@ async def dashboard():
  async with httpx.AsyncClient() as client:
   results=await asyncio.gather(*(get_json(client,YR_URL,{"lat":round(p["lat"],2),"lon":round(p["lon"],2)},headers={"User-Agent":YR_USER_AGENT},timeout=12) for p in PLACES),return_exceptions=True)
   # Google is only queried for towns where MET Norway did not return usable data.
-  google_indices=[i for i,result in enumerate(results) if isinstance(result,Exception)] if GOOGLE_WEATHER_API_KEY else []
+  google_indices=[i for i,result in enumerate(results) if isinstance(result,Exception) or not (isinstance(result,dict) and result.get("properties",{}).get("timeseries"))] if GOOGLE_WEATHER_API_KEY else []
   google_results=await asyncio.gather(*(fetch_google_weather(client,PLACES[i]) for i in google_indices),return_exceptions=True) if google_indices else []
   google_by_index=dict(zip(google_indices,google_results))
   normalized_by_index={}
