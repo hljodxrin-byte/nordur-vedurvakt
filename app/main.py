@@ -390,6 +390,8 @@ async def road_map():
     "valid_to":valid_to,"status":ROAD_STATUS_IS.get(code,description or code),
     "road":str(title),"description":str(description or ""),
     "extra":str(extra) if extra else None,"work":str(work) if work else None,
+    "work_code":str(work_code or "").upper(),
+    "roadwork":bool(kind=="point" and code=="VEGAVINNA" or kind=="road" and str(work_code or "").upper()=="VEGAVINNA"),
     "weight":str(weight) if weight else None,"recorded_at":recorded,"updated_at":updated,
     "rank":ROAD_STATUS_RANK.get(code,5)}})
  # IdButur á punktum getur vísað á leiðarnúmer en ekki alltaf sama auðkenni
@@ -412,6 +414,7 @@ async def road_map():
   props=item["properties"]
   linked=alerts_by_segment.get(id(item),[])
   codes={str(a.get("code") or "").upper() for a in linked}
+  props["roadwork"]=bool(props.get("roadwork") or "VEGAVINNA" in codes or props.get("work_code")=="VEGAVINNA")
   own_extra=props.get("extra_code","")
   own_work=props.get("work_code","")
   if linked:
