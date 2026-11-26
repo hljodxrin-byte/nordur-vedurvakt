@@ -14,7 +14,24 @@ PLACES = [
  {"name":"Ísafjörður","lat":66.0748,"lon":-23.1353},
  {"name":"Egilsstaðir","lat":65.2669,"lon":-14.3948},
  {"name":"Vík","lat":63.4186,"lon":-19.0060},
- {"name":"Vestmannaeyjar","lat":63.4427,"lon":-20.2734}
+ {"name":"Vestmannaeyjar","lat":63.4427,"lon":-20.2734},
+ {"name":"Kópavogur","lat":64.1125,"lon":-21.9123},
+ {"name":"Hafnarfjörður","lat":64.0671,"lon":-21.9378},
+ {"name":"Keflavík","lat":63.9998,"lon":-22.5582},
+ {"name":"Akranes","lat":64.3219,"lon":-22.07},
+ {"name":"Borgarnes","lat":64.5383,"lon":-21.9206},
+ {"name":"Stykkishólmur","lat":65.075,"lon":-22.7297},
+ {"name":"Patreksfjörður","lat":65.5978,"lon":-23.995},
+ {"name":"Bolungarvík","lat":66.1592,"lon":-23.2495},
+ {"name":"Sauðárkrókur","lat":65.7461,"lon":-19.6394},
+ {"name":"Siglufjörður","lat":66.1519,"lon":-18.9082},
+ {"name":"Húsavík","lat":66.0449,"lon":-17.3389},
+ {"name":"Seyðisfjörður","lat":65.2592,"lon":-14.0097},
+ {"name":"Neskaupstaður","lat":65.1482,"lon":-13.6837},
+ {"name":"Höfn","lat":64.2539,"lon":-15.2082},
+ {"name":"Selfoss","lat":63.933,"lon":-20.9971},
+ {"name":"Hveragerði","lat":64.0005,"lon":-21.186},
+ {"name":"Kirkjubæjarklaustur","lat":63.789,"lon":-18.0567}
 ]
 URL="https://api.open-meteo.com/v1/forecast"
 YR_URL="https://api.met.no/weatherapi/locationforecast/2.0/compact"
