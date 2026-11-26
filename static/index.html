@@ -229,9 +229,12 @@ function setRoadMapVisibility(show){
  if(roadMapSnapshot){const count=(roadMapSnapshot.features||[]).length;const stamp=roadMapSnapshot.updated_at?" · gögn Vegagerðarinnar uppfærð "+fmtDate(roadMapSnapshot.updated_at):"";status.textContent=(roadMapVisible?count+" færslur sýndar á kortinu":"Vegaupplýsingar faldar")+stamp+" · endurnýjað sjálfkrafa á 5 mínútna fresti";}
 }
 const roadworkMarkers=[];
-function roadworkIcon(){
+function roadworkIcon(p={}){
  const z=map.getZoom(),size=z<=4?10:z<=5?13:z<=6?16:z<=8?20:24;
- return L.divIcon({className:'roadwork-map-icon',html:'<span class="roadwork-sign" style="--sign-size:'+size+'px"></span>',iconSize:[size,size],iconAnchor:[size/2,size/2]});
+ const code=String(p.map_code||p.code||'').toUpperCase();
+ const isClosure=roadMapStatusCode(p)==='closed'||code==='ALLUR_AKSTUR_BANN'||code==='LOKAD';
+ const html=isClosure?'<span class="roadwork-sign" style="--sign-size:'+size+'px"></span>':'<span class="roadwork-cone" style="font-size:'+size+'px;line-height:1">🚧</span>';
+ return L.divIcon({className:'roadwork-map-icon',html,iconSize:[size+4,size+4],iconAnchor:[(size+4)/2,(size+4)/2]});
 }
 function roadworkMidpoint(geometry){
  if(!geometry)return null;
@@ -241,7 +244,7 @@ function roadworkMidpoint(geometry){
  const mid=line[Math.floor(line.length/2)];
  return Array.isArray(mid)&&mid.length>=2?[mid[1],mid[0]]:null;
 }
-function refreshRoadworkMarkerSizes(){roadworkMarkers.forEach(marker=>marker.setIcon(roadworkIcon()));}
+function refreshRoadworkMarkerSizes(){roadworkMarkers.forEach(marker=>marker.setIcon(roadworkIcon(marker._roadworkProperties||{})));}
 function renderRoadMap(data){
  roadMapSnapshot=data;roadMapLayer.clearLayers();roadworkMarkers.length=0;
  const features=data.features||[];
@@ -250,8 +253,8 @@ function renderRoadMap(data){
   pointToLayer:(feature,latlng)=>{
    const p=feature.properties||{};
    if(p.roadwork||String(p.code||'').toUpperCase()==='VEGAVINNA'){
-    const marker=L.marker(latlng,{icon:roadworkIcon(),zIndexOffset:900});
-    marker.bindPopup(roadMapPopup(p));roadworkMarkers.push(marker);return marker;
+    const marker=L.marker(latlng,{icon:roadworkIcon(p),zIndexOffset:900});
+    marker._roadworkProperties=p;marker.bindPopup(roadMapPopup(p));roadworkMarkers.push(marker);return marker;
    }
    return L.circleMarker(latlng,{radius:7,fillColor:roadMapStyle(feature).color,color:'#f5f8fc',weight:1.5,fillOpacity:.95});
   },
@@ -261,7 +264,7 @@ function renderRoadMap(data){
   const p=feature.properties||{};
   if((feature.geometry?.type==='LineString'||feature.geometry?.type==='MultiLineString')&&p.roadwork){
    const pos=roadworkMidpoint(feature.geometry);
-   if(pos){const marker=L.marker(pos,{icon:roadworkIcon(),zIndexOffset:900}).bindPopup(roadMapPopup(p));roadworkMarkers.push(marker);roadMapLayer.addLayer(marker);}
+   if(pos){const marker=L.marker(pos,{icon:roadworkIcon(p),zIndexOffset:900}).bindPopup(roadMapPopup(p));marker._roadworkProperties=p;roadworkMarkers.push(marker);roadMapLayer.addLayer(marker);}
   }
  });
  const stamp=data.updated_at?' · gögn Vegagerðarinnar uppfærð '+fmtDate(data.updated_at):'';
