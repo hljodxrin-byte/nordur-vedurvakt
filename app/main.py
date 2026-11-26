@@ -47,6 +47,14 @@ PLACES = [
  {"name":"Höfn","lat":64.2539,"lon":-15.2082},
  {"name":"Selfoss","lat":63.933,"lon":-20.9971},
  {"name":"Hveragerði","lat":64.0005,"lon":-21.186},
+ {"name":"Þorlákshöfn","lat":63.8559,"lon":-21.3834},
+ {"name":"Eyrarbakki","lat":63.8635,"lon":-21.1487},
+ {"name":"Stokkseyri","lat":63.8362,"lon":-21.0595},
+ {"name":"Hella","lat":63.8349,"lon":-20.4006},
+ {"name":"Hvolsvöllur","lat":63.7533,"lon":-20.2247},
+ {"name":"Flúðir","lat":64.1325,"lon":-20.3225},
+ {"name":"Laugarvatn","lat":64.2145,"lon":-20.7297},
+ {"name":"Þykkvibær","lat":63.733,"lon":-20.55},
  {"name":"Kirkjubæjarklaustur","lat":63.789,"lon":-18.0567}
 ]
 URL="https://api.open-meteo.com/v1/forecast"
