@@ -353,15 +353,46 @@ async def road_map():
     description=_road_value(props,"Lysing") or str(raw)
     extra=None;work=None;weight=None
    recorded=_road_value(props,"DagsSkrad");updated=_road_value(props,"DagsKeyrtUt")
+   valid_to=_road_value(props,"GildirTil")
+   # Sleppa punkttilkynningum sem eru útrunnar; þær eiga ekki að lita veginn lengur.
+   if kind=="point" and valid_to:
+    try:
+     expiry=datetime.fromisoformat(str(valid_to).replace("Z","+00:00"))
+     if expiry.tzinfo is None: expiry=expiry.replace(tzinfo=timezone.utc)
+     if expiry<=datetime.now(timezone.utc): continue
+    except (TypeError,ValueError): pass
    stamp=updated or recorded
    if stamp and (latest is None or str(stamp)>str(latest)): latest=stamp
    code=str(raw).upper()
+   segment_id=_road_value(props,"IdButur")
    features.append({"type":"Feature","geometry":geometry,"properties":{
-    "kind":kind,"code":code,"status":ROAD_STATUS_IS.get(code,description or code),
+    "kind":kind,"code":code,"id_butur":str(segment_id) if segment_id is not None else None,
+    "valid_to":valid_to,"status":ROAD_STATUS_IS.get(code,description or code),
     "road":str(title),"description":str(description or ""),
     "extra":str(extra) if extra else None,"work":str(work) if work else None,
     "weight":str(weight) if weight else None,"recorded_at":recorded,"updated_at":updated,
     "rank":ROAD_STATUS_RANK.get(code,5)}})
+ # Punktatilkynningar eru merktar með IdButur sem vísar á nákvæma vegbútaeiningu.
+ # Tengjum þær við veglínuna áður en GeoJSON er sent í kortið.
+ alerts_by_segment={}
+ for item in features:
+  props=item["properties"]
+  if props.get("kind")=="point" and props.get("id_butur"):
+   alerts_by_segment.setdefault(props["id_butur"],[]).append(props)
+ for item in features:
+  props=item["properties"]
+  if props.get("kind")!="road" or not props.get("id_butur"): continue
+  linked=alerts_by_segment.get(props["id_butur"],[])
+  if not linked: continue
+  props["linked_alerts"]=[{"code":a.get("code"),"status":a.get("status"),"description":a.get("description"),"road":a.get("road"),"valid_to":a.get("valid_to"),"recorded_at":a.get("recorded_at")} for a in linked]
+  # Lokun hefur alltaf forgang yfir færðarkóða vegkaflans.
+  codes={str(a.get("code") or "").upper() for a in linked}
+  if "ALLUR_AKSTUR_BANN" in codes:
+   props["map_code"]="ALLUR_AKSTUR_BANN"
+  elif "VEGAVINNA" in codes:
+   props["map_code"]="VEGAVINNA"
+  elif codes.intersection({"VATNASKEMMDIR","STEINKAST","OSLETTUR_VEGUR"}):
+   props["map_code"]="ANNAD_ATVIK"
  if not features and errors:
   raise HTTPException(status_code=502,detail="Ekki tókst að sækja vegagögn frá Vegagerðinni")
  data={"generated_at":time.time(),"source":"Vegagerðin – opin gagnaveita (WFS)",
