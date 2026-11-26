@@ -113,6 +113,11 @@ def convert_yr_forecast(place, payload):
   "weather_code":first["code"],"wind_speed_10m":first["wind"],
   "wind_direction_10m":None,"wind_gusts_10m":first["gust"],
   "pressure_msl":first["pressure"],"is_day":1}
+ hourly=[{"time":row["dt"].isoformat(),"temperature_2m":row["temp"],
+  "precipitation":row["precip"],"weather_code":row["code"],
+  "wind_speed_10m":row["wind"],"wind_gusts_10m":row["gust"],
+  "pressure_msl":row["pressure"],"is_day":1 if 6<=row["dt"].hour<20 else 0}
+  for row in rows]
  by_day={}
  for row in rows:
   key=row["dt"].date().isoformat()
@@ -135,7 +140,7 @@ def convert_yr_forecast(place, payload):
   daily["wind_speed_10m_max"].append(max(d["winds"]) if d["winds"] else None)
   daily["wind_gusts_10m_max"].append(max(d["gusts"]) if d["gusts"] else None)
   daily["pressure_msl_mean"].append(round(sum(d["pressures"])/len(d["pressures"]),1) if d["pressures"] else None)
- return {"current":current,"daily":daily,"source":"MET Norway Locationforecast 2.0","forecast_days":len(dates)}
+ return {"current":current,"hourly":hourly,"daily":daily,"source":"MET Norway Locationforecast 2.0","forecast_days":len(dates)}
 
 def cache_ok(key):
  return CACHE[key]["data"] is not None and time.time()-CACHE[key]["at"]<TTL
